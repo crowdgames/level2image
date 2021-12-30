@@ -81,8 +81,12 @@ for levelfile in args.levelfiles:
             x2 = (c2 + 0.5) * args.gridsize
             y2 = (r2 + 0.5) * args.gridsize
 
-            orthx = (y2 - y1) / 4
-            orthy = (x1 - x2) / 4
+            if x1 < x2:
+                orthx = (y2 - y1) / 4
+                orthy = (x1 - x2) / 4
+            else:
+                orthx = (y1 - y2) / 4
+                orthy = (x2 - x1) / 4
             midx = (x1 + x2) / 2
             midy = (y1 + y2) / 2
             curvex = midx + orthx
