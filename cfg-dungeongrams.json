@@ -1,0 +1,11 @@
+{
+    "colors": {
+        "#": "firebrick",
+        "^": "orange",
+        "-": "lightgrey",
+        "X": "black",
+        "@": "blue",
+        "O": "green",
+        "*": "cyan"
+    }
+}

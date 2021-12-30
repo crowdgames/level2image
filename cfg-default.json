@@ -1,0 +1,30 @@
+{
+    "colors": {
+        "@": "firebrick",
+        "H": "firebrick",
+        "-": "lightgrey",
+        "X": "black",
+        "#": "black",
+        "T": "darkgreen",
+        "M": "lightgreen",
+        "?": "orange",
+        "*": "blue",
+        "!": "green",
+
+        "^": "magenta",
+        "+": "cyan",
+
+        ".": "darkgrey",
+        "{": "darkgrey",
+        "}": "darkgrey",
+        "E": "firebrick",
+        "Q": "orange",
+        "o": "orange",
+        "S": "black",
+        "<": "green",
+        ">": "green",
+        "[": "lightgreen",
+        "]": "lightgreen",
+        "D": "orange"
+    }
+}
