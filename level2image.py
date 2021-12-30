@@ -29,12 +29,9 @@ with open(args.levelfile, 'rt') as levelfile:
         if len(line) == 0:
             continue
 
-        if line.startswith('REM PATH '):
-            path = line[9:].split(';')
+        if line.startswith('META PATH '):
+            path = line[10:].split(';')
             path = [tuple([int(el) for el in pt.strip().split()]) for pt in path]
-            continue
-
-        if line.startswith('REM'):
             continue
 
         lines.append(line)
