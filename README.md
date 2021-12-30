@@ -1,3 +1,3 @@
 # level2image
 
-`python level2image.py level.txt --outfile level.pdf`
+`python3 level2image.py example.lvl --outfile example.pdf`
