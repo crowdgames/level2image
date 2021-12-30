@@ -43,6 +43,9 @@ for levelfile in args.levelfiles:
                 path = [tuple([int(el) for el in pt.strip().split()]) for pt in path]
                 continue
 
+            if line.startswith('REM') or line.startswith('META'):
+                continue
+
             lines.append(line)
             max_line_len = max(max_line_len, len(line))
 
