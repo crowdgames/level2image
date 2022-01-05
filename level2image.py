@@ -17,7 +17,7 @@ parser.add_argument('--cfgfile', type=str, help='Config file.', default='cfg-def
 parser.add_argument('--fmt', type=str, choices=FMT_LIST, help='Output format, from: ' + ','.join(PATH_LIST) + '.', default=FMT_PDF)
 parser.add_argument('--stdout', action='store_true', help='Write to stdout instead of file.')
 parser.add_argument('--path', type=str, choices=PATH_LIST, help='How to display path, from: ' + ','.join(PATH_LIST) + '.', default=PATH_LINE)
-parser.add_argument('--path-arrows', action='store_true', help='Show arrows on path.')
+parser.add_argument('--path-no-arrows', action='store_true', help='Don\'t show arrows on path.')
 parser.add_argument('--path-color', type=str, help='Path color.', default='orangered')
 args = parser.parse_args()
 
@@ -111,7 +111,7 @@ for levelfile in args.levelfiles:
                         as_arc = True
                         break
 
-            if args.path_arrows:
+            if not args.path_no_arrows:
                 if as_arc:
                     adjust = distance(x1, y1, x2, y2)
                     adjust = max(0.0, min(1.0, (adjust - 10) / (50 - 10))) * 0.4 + 0.6
