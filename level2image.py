@@ -24,6 +24,7 @@ parser.add_argument('--path-edges', type=str, choices=PATH_EDGES_LIST, help='How
 parser.add_argument('--path-edges-no-arrows', action='store_true', help='Don\'t show arrows on path.')
 parser.add_argument('--path-tiles', type=str, choices=PATH_TILES_LIST, help='How to display path tiles, from: ' + ','.join(PATH_TILES_LIST) + '.', default=PATH_TILES_NONE)
 parser.add_argument('--path-color', type=str, help='Path color.', default='orangered')
+parser.add_argument('--no-background', action='store_true', help='Don\'t use background images if present.')
 args = parser.parse_args()
 
 if args.stdout and args.fmt != FMT_SVG:
@@ -66,11 +67,12 @@ for levelfile in args.levelfiles:
 
     pngdata = None
 
-    pngfilename = pathlib.Path(levelfile).with_suffix('.png')
-    if os.path.exists(pngfilename):
-        print(' - adding png background')
-        with open(pngfilename, 'rb') as pngfile:
-            pngdata = base64.b64encode(pngfile.read()).decode('ascii')
+    if not args.no_background:
+        pngfilename = pathlib.Path(levelfile).with_suffix('.png')
+        if os.path.exists(pngfilename):
+            print(' - adding png background')
+            with open(pngfilename, 'rb') as pngfile:
+                pngdata = base64.b64encode(pngfile.read()).decode('ascii')
 
     if pngdata:
         svg += '  <image width="%d" height="%d" xlink:href="data:image/png;base64,%s"/>\n' % (max_line_len * args.gridsize, len(lines) * args.gridsize, pngdata)
