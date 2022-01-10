@@ -127,6 +127,11 @@ for levelfile in args.levelfiles:
             else:
                 orthx = (y1 - y2) / 4
                 orthy = (x2 - x1) / 4
+            orthlen = distance(0, 0, orthx, orthy)
+            orthmax = 0.8 * args.gridsize
+            if orthlen > orthmax:
+                orthx = orthx / orthlen * orthmax
+                orthy = orthy / orthlen * orthmax
             midx = (x1 + x2) / 2
             midy = (y1 + y2) / 2
             curvex = midx + orthx
