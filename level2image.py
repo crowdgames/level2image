@@ -23,7 +23,7 @@ parser.add_argument('--fmt', type=str, choices=FMT_LIST, help='Output format, fr
 parser.add_argument('--stdout', action='store_true', help='Write to stdout instead of file.')
 parser.add_argument('--path-edges', type=str, choices=PATH_EDGES_LIST, help='How to display path edges, from: ' + ','.join(PATH_EDGES_LIST) + '.', default=PATH_EDGES_LINE)
 parser.add_argument('--path-edges-no-arrows', action='store_true', help='Don\'t show arrows on path.')
-parser.add_argument('--path-tiles', type=str, choices=PATH_TILES_LIST, help='How to display path tiles, from: ' + ','.join(PATH_TILES_LIST) + '.', default=PATH_TILES_NONE)
+parser.add_argument('--path-tiles', type=str, choices=PATH_TILES_LIST, help='How to display path tiles, from: ' + ','.join(PATH_TILES_LIST) + '.', default=PATH_TILES_SQUARE)
 parser.add_argument('--path-color', type=str, help='Path color.', default='orangered')
 parser.add_argument('--no-background', action='store_true', help='Don\'t use background images if present.')
 args = parser.parse_args()
@@ -49,10 +49,14 @@ for levelfile in args.levelfiles:
                 continue
 
             if line.startswith('META PATH EDGES:'):
+                if path_edges != None:
+                    raise RuntimeError('multiple path edges found')
                 path_edges = [tuple([int(el) for el in pt.strip().split()]) for pt in line[16:].split(';')]
                 continue
 
             if line.startswith('META PATH TILES:'):
+                if path_tiles != None:
+                    raise RuntimeError('multiple path tiles found')
                 path_tiles = [tuple([int(el) for el in pt.strip().split()]) for pt in line[16:].split(';')]
                 continue
 
