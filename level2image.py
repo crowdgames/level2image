@@ -1,17 +1,18 @@
 import argparse, base64, json, math, os, pathlib, sys
 
-PATH_EDGES_NONE   = 'none'
-PATH_EDGES_LINE   = 'line'
-PATH_EDGES_ARC    = 'arc'
-PATH_EDGES_LIST   = [PATH_EDGES_NONE, PATH_EDGES_LINE, PATH_EDGES_ARC]
+PATH_EDGES_NONE     = 'none'
+PATH_EDGES_LINE     = 'line'
+PATH_EDGES_ARC      = 'arc'
+PATH_EDGES_LIST     = [PATH_EDGES_NONE, PATH_EDGES_LINE, PATH_EDGES_ARC]
 
-PATH_TILES_NONE   = 'none'
-PATH_TILES_BOX    = 'box'
-PATH_TILES_LIST   = [PATH_TILES_NONE, PATH_TILES_BOX]
+PATH_TILES_NONE     = 'none'
+PATH_TILES_SQUARE   = 'square'
+PATH_TILES_SQ_UNIQ  = 'square-uniq'
+PATH_TILES_LIST     = [PATH_TILES_NONE, PATH_TILES_SQUARE, PATH_TILES_SQ_UNIQ]
 
-FMT_SVG           = 'svg'
-FMT_PDF           = 'pdf'
-FMT_LIST          = [FMT_SVG, FMT_PDF]
+FMT_SVG             = 'svg'
+FMT_PDF             = 'pdf'
+FMT_LIST            = [FMT_SVG, FMT_PDF]
 
 parser = argparse.ArgumentParser(description='Create svg from level file.')
 parser.add_argument('levelfiles', type=str, nargs='+', help='Input level files.')
@@ -39,7 +40,7 @@ for levelfile in args.levelfiles:
     lines = []
     max_line_len = 0
     path_edges = None
-    path_tiless = None
+    path_tiles = None
 
     with open(levelfile, 'rt') as lvl:
         for line in lvl:
@@ -92,17 +93,20 @@ for levelfile in args.levelfiles:
                 svg += '  <text x="%d" y="%d" fill="%s" style="fill-opacity:%f">%s</text>\n' % (x + 2, y - 1, clr, 1.0, char)
 
                 if char != '-':
-                    svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="fill:%s;fill-opacity:%f"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, clr, 0.3)
-        
+                    svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%f"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, clr, 0.3)
+
     if path_tiles != None and args.path_tiles != PATH_TILES_NONE:
         print(' - adding tiles path')
 
         path_color = args.path_color
 
+        drawn = set()
         for rr, cc in path_tiles:
             x = cc * args.gridsize
             y = (rr + 1) * args.gridsize - 1
-            svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:%s;fill:none"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, path_color)
+            if args.path_tiles == PATH_TILES_SQUARE or (args.path_tiles == PATH_TILES_SQ_UNIQ and (x, y) not in drawn):
+                svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:0.3"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, path_color)
+            drawn.add((x, y))
 
     if path_edges != None and args.path_edges != PATH_EDGES_NONE:
         print(' - adding edges path')
