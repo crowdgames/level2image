@@ -5,10 +5,11 @@ EDGES_LINE     = 'line'
 EDGES_ARC      = 'arc'
 EDGES_LIST     = [EDGES_NONE, EDGES_LINE, EDGES_ARC]
 
-PATH_TILES_NONE     = 'none'
-PATH_TILES_SQUARE   = 'square'
-PATH_TILES_SQ_UNIQ  = 'square-uniq'
-PATH_TILES_LIST     = [PATH_TILES_NONE, PATH_TILES_SQUARE, PATH_TILES_SQ_UNIQ]
+BLOCKS_NONE         = 'none'
+BLOCKS_FILL         = 'fill'
+BLOCKS_FILL_UNIQ    = 'fill-uniq'
+BLOCKS_OUTLINE      = 'outline'
+BLOCKS_LIST         = [BLOCKS_NONE, BLOCKS_FILL, BLOCKS_FILL_UNIQ, BLOCKS_OUTLINE]
 
 FMT_SVG             = 'svg'
 FMT_PDF             = 'pdf'
@@ -23,8 +24,9 @@ parser.add_argument('--fmt', type=str, choices=FMT_LIST, help='Output format, fr
 parser.add_argument('--stdout', action='store_true', help='Write to stdout instead of file.')
 parser.add_argument('--path-edges', type=str, choices=EDGES_LIST, help='How to display path edges, from: ' + ','.join(EDGES_LIST) + '.', default=EDGES_LINE)
 parser.add_argument('--misc-edges', type=str, choices=EDGES_LIST, help='How to display misc edges, from: ' + ','.join(EDGES_LIST) + '.', default=EDGES_LINE)
+parser.add_argument('--misc-blocks', type=str, choices=BLOCKS_LIST, help='How to display misc blocks, from: ' + ','.join(BLOCKS_LIST) + '.', default=BLOCKS_OUTLINE)
 parser.add_argument('--edges-no-arrows', action='store_true', help='Don\'t show arrows on edges.')
-parser.add_argument('--path-tiles', type=str, choices=PATH_TILES_LIST, help='How to display path tiles, from: ' + ','.join(PATH_TILES_LIST) + '.', default=PATH_TILES_SQUARE)
+parser.add_argument('--path-tiles', type=str, choices=BLOCKS_LIST, help='How to display path tiles, from: ' + ','.join(BLOCKS_LIST) + '.', default=BLOCKS_FILL)
 parser.add_argument('--path-color', type=str, help='Path color.', default='orangered')
 parser.add_argument('--misc-color', type=str, help='Misc color.', default='darkgoldenrod')
 parser.add_argument('--no-background', action='store_true', help='Don\'t use background images if present.')
@@ -44,6 +46,24 @@ def is_between(ra, ca, rb, cb, rc, cc):
     if (ra, ca) == (rb, cb) or (rc, cc) == (rb, cb):
         return False
     return abs(distance(ra, ca, rb, cb) + distance(rb, cb, rc, cc) - distance(ra, ca, rc, cc)) < 0.01
+
+def svg_rect(r0, c0, rsz, csz, style, color, drawn):
+    if style == BLOCKS_FILL_UNIQ and (r0, c0, rsz, csz) in drawn:
+        return ''
+
+    drawn.add((r0, c0, rsz, csz))
+
+    x0 = c0 * args.gridsize
+    y0 = r0 * args.gridsize
+    xsz = max(0.01, csz * args.gridsize)
+    ysz = max(0.01, rsz * args.gridsize)
+
+    if style == BLOCKS_FILL or style == BLOCKS_FILL_UNIQ:
+        style_svg = 'stroke:none;fill:%s;fill-opacity:0.3' % (color)
+    else:
+        style_svg = 'stroke:%s;fill:none' % (color)
+
+    return '  <rect x="%f" y="%f" width="%f" height="%f" style="%s"/>\n' % (x0, y0, xsz, ysz, style_svg)
 
 def svg_line(r1, c1, r2, c2, color, require_arc, arc_avoid_edges, from_circle, to_circle, to_arrow):
     x1 = (c1 + 0.5) * args.gridsize
@@ -110,6 +130,7 @@ for levelfile in args.levelfiles:
     path_edges = None
     path_tiles = None
     misc_edges = None
+    misc_blocks = None
 
     with open(levelfile, 'rt') as lvl:
         for line in lvl:
@@ -117,25 +138,39 @@ for levelfile in args.levelfiles:
             if len(line) == 0:
                 continue
 
-            if line.startswith('META PATH EDGES:'):
+            TAG = 'META PATH EDGES:'
+            if line.startswith(TAG):
                 if path_edges != None:
                     raise RuntimeError('multiple path edges found')
-                path_edges = [tuple([int(el) for el in pt.strip().split()]) for pt in line[16:].split(';')]
+                path_edges = [tuple([float(el) for el in pt.strip().split()]) for pt in line[len(TAG):].split(';')]
                 continue
 
-            if line.startswith('META PATH TILES:'):
+            TAG = 'META PATH TILES:'
+            if line.startswith(TAG):
                 if path_tiles != None:
                     raise RuntimeError('multiple path tiles found')
-                path_tiles = [tuple([int(el) for el in pt.strip().split()]) for pt in line[16:].split(';')]
+                path_tiles = [tuple([float(el) for el in pt.strip().split()]) for pt in line[len(TAG):].split(';')]
                 continue
 
-            if line.startswith('META MISC EDGES:'):
+            TAG = 'META MISC EDGES:'
+            if line.startswith(TAG):
                 if misc_edges == None:
                     misc_edges = []
-                misc_edges += [tuple([int(el) for el in pt.strip().split()]) for pt in line[16:].split(';')]
+                misc_edges += [tuple([float(el) for el in pt.strip().split()]) for pt in line[len(TAG):].split(';')]
                 continue
 
-            if line.startswith('REM') or line.startswith('META'):
+            TAG = 'META MISC BLOCKS:'
+            if line.startswith(TAG):
+                if misc_blocks == None:
+                    misc_blocks = []
+                misc_blocks += [tuple([float(el) for el in pt.strip().split()]) for pt in line[len(TAG):].split(';')]
+                continue
+
+            if line.startswith('META'):
+                print(' - WARNING: unrecognized META line: %s' % line)
+                continue
+
+            if line.startswith('REM'):
                 continue
 
             lines.append(line)
@@ -174,18 +209,23 @@ for levelfile in args.levelfiles:
                 if char != '-':
                     svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%f"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, clr, 0.3)
 
-    if path_tiles != None and args.path_tiles != PATH_TILES_NONE:
+    if path_tiles != None and args.path_tiles != BLOCKS_NONE:
         print(' - adding tiles path')
 
         path_color = args.path_color
 
         drawn = set()
         for rr, cc in path_tiles:
-            x = cc * args.gridsize
-            y = (rr + 1) * args.gridsize - 1
-            if args.path_tiles == PATH_TILES_SQUARE or (args.path_tiles == PATH_TILES_SQ_UNIQ and (x, y) not in drawn):
-                svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:0.3"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, path_color)
-            drawn.add((x, y))
+            svg += svg_rect(rr, cc, 1, 1, args.path_tiles, path_color, drawn)
+
+    if misc_blocks != None and args.misc_blocks != BLOCKS_NONE:
+        print(' - adding blocks misc')
+
+        block_color = args.misc_color
+
+        drawn = set()
+        for r1, c1, r2, c2 in misc_blocks:
+            svg += svg_rect(r1, c1, r2 - r1, c2 - c1, args.misc_blocks, block_color, drawn)
 
     if misc_edges != None and args.misc_edges != EDGES_NONE:
         print(' - adding edges misc')
