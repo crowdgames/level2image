@@ -19,7 +19,7 @@ parser = argparse.ArgumentParser(description='Create svg from level file.')
 parser.add_argument('levelfiles', type=str, nargs='+', help='Input level files.')
 parser.add_argument('--fontsize', type=int, help='Font size.', default=8)
 parser.add_argument('--gridsize', type=int, help='Grid size.', default=10)
-parser.add_argument('--cfgfile', type=str, help='Config file.', default='cfg-default.json')
+parser.add_argument('--cfgfile', type=str, help='Config file.')
 parser.add_argument('--fmt', type=str, choices=FMT_LIST, help='Output format, from: ' + ','.join(FMT_LIST) + '.', default=FMT_PDF)
 parser.add_argument('--stdout', action='store_true', help='Write to stdout instead of file.')
 parser.add_argument('--path-edges', type=str, choices=EDGES_LIST, help='How to display path edges, from: ' + ','.join(EDGES_LIST) + '.', default=EDGES_LINE)
@@ -34,6 +34,9 @@ args = parser.parse_args()
 
 if args.stdout and args.fmt != FMT_SVG:
     raise RuntimeError('can only write svg to stdout.')
+
+if args.cfgfile == None:
+    args.cfgfile = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'cfg-default.json')
 
 with open(args.cfgfile, 'rt') as cfgfile:
     cfg = json.load(cfgfile)
@@ -134,7 +137,7 @@ for levelfile in args.levelfiles:
 
     with open(levelfile, 'rt') as lvl:
         for line in lvl:
-            line = line.strip()
+            line = line.rstrip('\n')
             if len(line) == 0:
                 continue
 
@@ -205,9 +208,7 @@ for levelfile in args.levelfiles:
                     char = '&gt;'
 
                 svg += '  <text x="%d" y="%d" fill="%s" style="fill-opacity:%f">%s</text>\n' % (x + 2, y - 1, clr, 1.0, char)
-
-                if char != '-':
-                    svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%f"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, clr, 0.3)
+                svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%f"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, clr, 0.3)
 
     if path_tiles != None and args.path_tiles != BLOCKS_NONE:
         print(' - adding tiles path')
