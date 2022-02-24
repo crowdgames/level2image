@@ -25,6 +25,7 @@
         ">": "green",
         "[": "lightgreen",
         "]": "lightgreen",
-        "D": "orange"
+        "D": "orange",
+        "d": "orange"
     }
 }

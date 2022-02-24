@@ -82,8 +82,12 @@ def svg_line(r1, c1, r2, c2, color, require_arc, arc_avoid_edges, from_circle, t
         orthy = (x2 - x1) / 4
     orthmax = 0.75 * args.gridsize
     orthlen = distance(0, 0, orthx, orthy)
+    if orthlen == 0:
+        return None
+
     orthx = orthx / orthlen * orthmax
     orthy = orthy / orthlen * orthmax
+
     midx = (x1 + x2) / 2
     midy = (y1 + y2) / 2
     curvex = midx + orthx
@@ -204,8 +208,10 @@ for levelfile in args.levelfiles:
 
                 if char == '<':
                     char = '&lt;'
-                if char == '>':
+                elif char == '>':
                     char = '&gt;'
+                elif char == '&':
+                    char = '&#38;'
 
                 svg += '  <text x="%d" y="%d" fill="%s" style="fill-opacity:%f">%s</text>\n' % (x + 2, y - 1, clr, 1.0, char)
                 svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%f"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, clr, 0.3)
@@ -242,8 +248,10 @@ for levelfile in args.levelfiles:
         for r1, c1, r2, c2 in misc_edges:
             if (r1, c1, r2, c2) in skip_path_edges:
                 continue
-
-            svg += svg_line(r1, c1, r2, c2, edge_color, args.misc_edges == EDGES_ARC, avoid_edges, False, False, not args.edges_no_arrows)
+            
+            line = svg_line(r1, c1, r2, c2, edge_color, args.misc_edges == EDGES_ARC, avoid_edges, False, False, not args.edges_no_arrows)
+            if line != None:
+                svg += line
 
     if path_edges != None and args.path_edges != EDGES_NONE:
         print(' - adding edges path')
@@ -252,7 +260,9 @@ for levelfile in args.levelfiles:
         avoid_edges = [(r1, c1, r2, c2) for ((r1, c1), (r2, c2)) in zip(path_edges, path_edges[1:])]
 
         for ii, ((r1, c1), (r2, c2)) in enumerate(zip(path_edges, path_edges[1:])):
-            svg += svg_line(r1, c1, r2, c2, path_color, args.path_edges == EDGES_ARC, avoid_edges, ii == 0, ii + 2 == len(path_edges), not args.edges_no_arrows)
+            line = svg_line(r1, c1, r2, c2, path_color, args.path_edges == EDGES_ARC, avoid_edges, ii == 0, ii + 2 == len(path_edges), not args.edges_no_arrows)
+            if line != None:
+                svg += line
 
     svg += '</svg>\n'
 

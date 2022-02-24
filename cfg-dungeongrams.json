@@ -4,6 +4,8 @@
         "^": "orange",
         "-": "lightgrey",
         "X": "black",
+        "\\": "black",
+        "/": "black",
         "@": "blue",
         "O": "green",
         "*": "cyan"
