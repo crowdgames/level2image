@@ -69,6 +69,10 @@ def svg_rect(r0, c0, rsz, csz, style, color, drawn):
     return '  <rect x="%f" y="%f" width="%f" height="%f" style="%s"/>\n' % (x0, y0, xsz, ysz, style_svg)
 
 def svg_line(r1, c1, r2, c2, color, require_arc, arc_avoid_edges, from_circle, to_circle, to_arrow):
+    if (r1, c1) == (r2, c2):
+        print(' - WARNING: skipping zero-length edge: %f %f %f %f' % (r1, c1, r2, c2))
+        return ''
+
     x1 = (c1 + 0.5) * args.gridsize
     y1 = (r1 + 0.5) * args.gridsize
     x2 = (c2 + 0.5) * args.gridsize
@@ -82,8 +86,6 @@ def svg_line(r1, c1, r2, c2, color, require_arc, arc_avoid_edges, from_circle, t
         orthy = (x2 - x1) / 4
     orthmax = 0.75 * args.gridsize
     orthlen = distance(0, 0, orthx, orthy)
-    if orthlen == 0:
-        return None
 
     orthx = orthx / orthlen * orthmax
     orthy = orthy / orthlen * orthmax
@@ -249,9 +251,7 @@ for levelfile in args.levelfiles:
             if (r1, c1, r2, c2) in skip_path_edges:
                 continue
             
-            line = svg_line(r1, c1, r2, c2, edge_color, args.misc_edges == EDGES_ARC, avoid_edges, False, False, not args.edges_no_arrows)
-            if line != None:
-                svg += line
+            svg += svg_line(r1, c1, r2, c2, edge_color, args.misc_edges == EDGES_ARC, avoid_edges, False, False, not args.edges_no_arrows)
 
     if path_edges != None and args.path_edges != EDGES_NONE:
         print(' - adding edges path')
@@ -260,9 +260,7 @@ for levelfile in args.levelfiles:
         avoid_edges = [(r1, c1, r2, c2) for ((r1, c1), (r2, c2)) in zip(path_edges, path_edges[1:])]
 
         for ii, ((r1, c1), (r2, c2)) in enumerate(zip(path_edges, path_edges[1:])):
-            line = svg_line(r1, c1, r2, c2, path_color, args.path_edges == EDGES_ARC, avoid_edges, ii == 0, ii + 2 == len(path_edges), not args.edges_no_arrows)
-            if line != None:
-                svg += line
+            svg += svg_line(r1, c1, r2, c2, path_color, args.path_edges == EDGES_ARC, avoid_edges, ii == 0, ii + 2 == len(path_edges), not args.edges_no_arrows)
 
     svg += '</svg>\n'
 
