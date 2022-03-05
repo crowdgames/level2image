@@ -30,6 +30,7 @@ parser.add_argument('--path-tiles', type=str, choices=BLOCKS_LIST, help='How to 
 parser.add_argument('--path-color', type=str, help='Path color.', default='orangered')
 parser.add_argument('--misc-color', type=str, help='Misc color.', default='darkgoldenrod')
 parser.add_argument('--no-background', action='store_true', help='Don\'t use background images if present.')
+parser.add_argument('--padding', type=int, help='Padding around edges.', default=0)
 args = parser.parse_args()
 
 if args.stdout and args.fmt != FMT_SVG:
@@ -50,33 +51,46 @@ def is_between(ra, ca, rb, cb, rc, cc):
         return False
     return abs(distance(ra, ca, rb, cb) + distance(rb, cb, rc, cc) - distance(ra, ca, rc, cc)) < 0.01
 
-def svg_rect(r0, c0, rsz, csz, style, color, drawn):
+def svg_rect(r0, c0, rsz, csz, padding, style, color, drawn):
+    if (rsz, csz) == (0, 0):
+        print(' - WARNING: skipping zero-size rect: %f %f %f %f' % (r0, c0, rsz, csz))
+        return ''
+
     if style == BLOCKS_FILL_UNIQ and (r0, c0, rsz, csz) in drawn:
         return ''
 
     drawn.add((r0, c0, rsz, csz))
 
-    x0 = c0 * args.gridsize
-    y0 = r0 * args.gridsize
-    xsz = max(0.01, csz * args.gridsize)
-    ysz = max(0.01, rsz * args.gridsize)
-
     if style == BLOCKS_FILL or style == BLOCKS_FILL_UNIQ:
         style_svg = 'stroke:none;fill:%s;fill-opacity:0.3' % (color)
+        inset = 0
     else:
         style_svg = 'stroke:%s;fill:none' % (color)
+        inset = 0.5
+
+    x0 = c0 * args.gridsize + inset + padding
+    xsz = csz * args.gridsize - 2 * inset
+    if xsz <= 0:
+        x0 = (c0 + 0.5 * (csz - 0.01)) * args.gridsize + padding
+        xsz = 0.01
+
+    y0 = r0 * args.gridsize + inset + padding
+    ysz = rsz * args.gridsize - 2 * inset
+    if ysz <= 0:
+        y0 = (r0 + 0.5 * (rsz - 0.01)) * args.gridsize + padding
+        ysz = 0.01
 
     return '  <rect x="%f" y="%f" width="%f" height="%f" style="%s"/>\n' % (x0, y0, xsz, ysz, style_svg)
 
-def svg_line(r1, c1, r2, c2, color, require_arc, arc_avoid_edges, from_circle, to_circle, to_arrow):
+def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_circle, to_circle, to_arrow):
     if (r1, c1) == (r2, c2):
         print(' - WARNING: skipping zero-length edge: %f %f %f %f' % (r1, c1, r2, c2))
         return ''
 
-    x1 = (c1 + 0.5) * args.gridsize
-    y1 = (r1 + 0.5) * args.gridsize
-    x2 = (c2 + 0.5) * args.gridsize
-    y2 = (r2 + 0.5) * args.gridsize
+    x1 = (c1 + 0.5) * args.gridsize + padding
+    y1 = (r1 + 0.5) * args.gridsize + padding
+    x2 = (c2 + 0.5) * args.gridsize + padding
+    y2 = (r2 + 0.5) * args.gridsize + padding
 
     if x1 < x2:
         orthx = (y2 - y1) / 4
@@ -187,7 +201,7 @@ for levelfile in args.levelfiles:
 
     svg = ''
 
-    svg += '<svg viewBox="0 0 %d %d" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" font-family="Courier, monospace" font-size="%dpt">\n' % (max_line_len * args.gridsize, len(lines) * args.gridsize, args.fontsize)
+    svg += '<svg viewBox="0 0 %f %f" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" font-family="Courier, monospace" font-size="%dpt">\n' % (max_line_len * args.gridsize + 2 * args.padding, len(lines) * args.gridsize + 2 * args.padding, args.fontsize)
 
     pngdata = None
 
@@ -204,8 +218,8 @@ for levelfile in args.levelfiles:
     else:
         for linei, line in enumerate(lines):
             for chari, char in enumerate(line):
-                x = chari * args.gridsize
-                y = (linei + 1) * args.gridsize - 1
+                x = chari * args.gridsize + args.padding
+                y = (linei + 1) * args.gridsize - 1 + args.padding
                 clr = cfg['colors'][char] if char in cfg['colors'] else 'grey'
 
                 if char == '<':
@@ -225,7 +239,7 @@ for levelfile in args.levelfiles:
 
         drawn = set()
         for rr, cc in path_tiles:
-            svg += svg_rect(rr, cc, 1, 1, args.path_tiles, path_color, drawn)
+            svg += svg_rect(rr, cc, 1, 1, args.padding, args.path_tiles, path_color, drawn)
 
     if misc_blocks != None and args.misc_blocks != BLOCKS_NONE:
         print(' - adding blocks misc')
@@ -234,7 +248,7 @@ for levelfile in args.levelfiles:
 
         drawn = set()
         for r1, c1, r2, c2 in misc_blocks:
-            svg += svg_rect(r1, c1, r2 - r1, c2 - c1, args.misc_blocks, block_color, drawn)
+            svg += svg_rect(r1, c1, r2 - r1, c2 - c1, args.padding, args.misc_blocks, block_color, drawn)
 
     if misc_edges != None and args.misc_edges != EDGES_NONE:
         print(' - adding edges misc')
@@ -250,8 +264,8 @@ for levelfile in args.levelfiles:
         for r1, c1, r2, c2 in misc_edges:
             if (r1, c1, r2, c2) in skip_path_edges:
                 continue
-            
-            svg += svg_line(r1, c1, r2, c2, edge_color, args.misc_edges == EDGES_ARC, avoid_edges, False, False, not args.edges_no_arrows)
+
+            svg += svg_line(r1, c1, r2, c2, args.padding, edge_color, args.misc_edges == EDGES_ARC, avoid_edges, False, False, not args.edges_no_arrows)
 
     if path_edges != None and args.path_edges != EDGES_NONE:
         print(' - adding edges path')
@@ -260,7 +274,7 @@ for levelfile in args.levelfiles:
         avoid_edges = [(r1, c1, r2, c2) for ((r1, c1), (r2, c2)) in zip(path_edges, path_edges[1:])]
 
         for ii, ((r1, c1), (r2, c2)) in enumerate(zip(path_edges, path_edges[1:])):
-            svg += svg_line(r1, c1, r2, c2, path_color, args.path_edges == EDGES_ARC, avoid_edges, ii == 0, ii + 2 == len(path_edges), not args.edges_no_arrows)
+            svg += svg_line(r1, c1, r2, c2, args.padding, path_color, args.path_edges == EDGES_ARC, avoid_edges, ii == 0, ii + 2 == len(path_edges), not args.edges_no_arrows)
 
     svg += '</svg>\n'
 
