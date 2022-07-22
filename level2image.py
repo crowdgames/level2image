@@ -258,7 +258,7 @@ for levelfile in args.levelfiles:
 
         skip_path_edges = set()
         if path_edges != None and args.path_edges != EDGES_NONE:
-            for (r1, c1), (r2, c2) in zip(path_edges, path_edges[1:]):
+            for r1, c1, r2, c2 in path_edges:
                 skip_path_edges.add((r1, c1, r2, c2))
 
         for r1, c1, r2, c2 in misc_edges:
@@ -271,10 +271,10 @@ for levelfile in args.levelfiles:
         print(' - adding edges path')
 
         path_color = args.path_color
-        avoid_edges = [(r1, c1, r2, c2) for ((r1, c1), (r2, c2)) in zip(path_edges, path_edges[1:])]
+        avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in path_edges]
 
-        for ii, ((r1, c1), (r2, c2)) in enumerate(zip(path_edges, path_edges[1:])):
-            svg += svg_line(r1, c1, r2, c2, args.padding, path_color, args.path_edges == EDGES_ARC, avoid_edges, ii == 0, ii + 2 == len(path_edges), not args.edges_no_arrows)
+        for ii, (r1, c1, r2, c2) in enumerate(path_edges):
+            svg += svg_line(r1, c1, r2, c2, args.padding, path_color, args.path_edges == EDGES_ARC, avoid_edges, ii == 0, ii + 1 == len(path_edges), not args.edges_no_arrows)
 
     svg += '</svg>\n'
 
