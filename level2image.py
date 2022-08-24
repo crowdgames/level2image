@@ -1,4 +1,5 @@
-import argparse, base64, json, math, os, pathlib, sys
+import argparse, base64, io, json, math, os, pathlib, sys
+import PIL.Image
 
 EDGES_NONE     = 'none'
 EDGES_LINE     = 'line'
@@ -14,7 +15,8 @@ BLOCKS_LIST         = [BLOCKS_NONE, BLOCKS_FILL, BLOCKS_FILL_UNIQ, BLOCKS_OUTLIN
 FMT_SVG             = 'svg'
 FMT_PDF             = 'pdf'
 FMT_PNG             = 'png'
-FMT_LIST            = [FMT_SVG, FMT_PDF, FMT_PNG]
+FMT_GIF_ANIM        = 'gif-anim'
+FMT_LIST            = [FMT_SVG, FMT_PDF, FMT_PNG, FMT_GIF_ANIM]
 
 parser = argparse.ArgumentParser(description='Create svg from level file.')
 parser.add_argument('levelfiles', type=str, nargs='+', help='Input level files.')
@@ -145,6 +147,12 @@ def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_
         ret += '  <line x1="%.2f" y1="%.2f" x2="%.2f" y2="%.2f" stroke="%s" stroke-width="1" stroke-linecap="round"/>\n' % (x1, y1, x2, y2, color)
 
     return ret
+
+
+
+anim_name, anim_data = None, None
+if args.fmt == FMT_GIF_ANIM:
+    anim_data = []
 
 for levelfile in args.levelfiles:
     print('processing', levelfile)
@@ -293,14 +301,39 @@ for levelfile in args.levelfiles:
         data = cairosvg.svg2png(svg, background_color='#ffffff', parent_width=svg_width, parent_height=svg_height, output_width=svg_width*2, output_height=svg_height*2)
         mode = 'b'
         ext = '.png'
+    elif args.fmt == FMT_GIF_ANIM:
+        import cairosvg
+        data = None
+        mode = None
+        ext = None
+
+        if anim_name == None:
+            anim_name = levelfile
+        anim_data.append(cairosvg.svg2png(svg, background_color='#ffffff', parent_width=svg_width, parent_height=svg_height, output_width=svg_width*2, output_height=svg_height*2))
     else:
         raise RuntimeError('unknown format for output: %s' % args.fmt)
 
-    if args.stdout:
-        sys.stdout.write(data)
+    if args.fmt != FMT_GIF_ANIM:
+        if args.stdout:
+            sys.stdout.write(data)
 
-    else:
-        outfilename = pathlib.Path(levelfile).with_suffix('.out' + ext)
-        print(' - writing', outfilename)
-        outfile = open(outfilename, 'w' + mode)
-        outfile.write(data)
+        else:
+            outfilename = pathlib.Path(levelfile).with_suffix('.out' + ext)
+            print(' - writing', outfilename)
+            outfile = open(outfilename, 'w' + mode)
+            outfile.write(data)
+
+if args.fmt == FMT_GIF_ANIM:
+    outfilename = pathlib.Path(anim_name).with_suffix('.out.anim.gif')
+    print(' - writing', outfilename)
+    imgs = [PIL.Image.open(io.BytesIO(data)) for data in anim_data]
+
+    # put all the images into one image to find a good palette
+    img_meta = PIL.Image.new('RGB', (imgs[0].width, imgs[0].height * len(imgs)))
+    for ii, img in enumerate(imgs):
+        img_meta.paste(img, (0, imgs[0].height * ii))
+    img_meta = img_meta.quantize(colors=256, dither=0)
+    imgs = [img.quantize(palette=img_meta, dither=0) for img in imgs]
+
+    # disposal=2 prevents removal of duplicate frames
+    imgs[0].save(fp=outfilename, append_images=imgs[1:], save_all=True, duration=250, loop=0, optimize=False, disposal=2)
