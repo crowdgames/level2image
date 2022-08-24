@@ -13,7 +13,8 @@ BLOCKS_LIST         = [BLOCKS_NONE, BLOCKS_FILL, BLOCKS_FILL_UNIQ, BLOCKS_OUTLIN
 
 FMT_SVG             = 'svg'
 FMT_PDF             = 'pdf'
-FMT_LIST            = [FMT_SVG, FMT_PDF]
+FMT_PNG             = 'png'
+FMT_LIST            = [FMT_SVG, FMT_PDF, FMT_PNG]
 
 parser = argparse.ArgumentParser(description='Create svg from level file.')
 parser.add_argument('levelfiles', type=str, nargs='+', help='Input level files.')
@@ -158,8 +159,6 @@ for levelfile in args.levelfiles:
     with open(levelfile, 'rt') as lvl:
         for line in lvl:
             line = line.rstrip('\n')
-            if len(line) == 0:
-                continue
 
             TAG = 'META PATH EDGES:'
             if line.startswith(TAG):
@@ -201,7 +200,9 @@ for levelfile in args.levelfiles:
 
     svg = ''
 
-    svg += '<svg viewBox="0 0 %f %f" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" font-family="Courier, monospace" font-size="%dpt">\n' % (max_line_len * args.gridsize + 2 * args.padding, len(lines) * args.gridsize + 2 * args.padding, args.fontsize)
+    svg_width = max_line_len * args.gridsize + 2 * args.padding
+    svg_height = len(lines) * args.gridsize + 2 * args.padding
+    svg += '<svg viewBox="0 0 %f %f" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" font-family="Courier, monospace" font-size="%dpt">\n' % (svg_width, svg_height, args.fontsize)
 
     pngdata = None
 
@@ -287,6 +288,11 @@ for levelfile in args.levelfiles:
         data = cairosvg.svg2pdf(svg)
         mode = 'b'
         ext = '.pdf'
+    elif args.fmt == FMT_PNG:
+        import cairosvg
+        data = cairosvg.svg2png(svg, background_color='#ffffff', parent_width=svg_width, parent_height=svg_height, output_width=svg_width*2, output_height=svg_height*2)
+        mode = 'b'
+        ext = '.png'
     else:
         raise RuntimeError('unknown format for output: %s' % args.fmt)
 
@@ -294,7 +300,7 @@ for levelfile in args.levelfiles:
         sys.stdout.write(data)
 
     else:
-        outfilename = pathlib.Path(levelfile).with_suffix(ext)
+        outfilename = pathlib.Path(levelfile).with_suffix('.out' + ext)
         print(' - writing', outfilename)
         outfile = open(outfilename, 'w' + mode)
         outfile.write(data)
