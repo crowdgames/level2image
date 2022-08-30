@@ -248,7 +248,7 @@ for levelfile in args.levelfiles:
                 if custom != None:
                     svg += '  ' + custom + '\n'
                 if char != None:
-                    svg += '  <text x="%d" y="%d" fill="%s" style="fill-opacity:%f">%s</text>\n' % (x + 2, y - 1, clr, 1.0, char)
+                    svg += '  <text x="%f" y="%f" dominant-baseline="middle" text-anchor="middle" fill="%s" style="fill-opacity:%f">%s</text>\n' % (x + 0.5 * args.gridsize, y - 0.34 * args.gridsize, clr, 1.0, char)
                 svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%f"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, clr, 0.3)
 
     if path_tiles != None and args.path_tiles != BLOCKS_NONE:
