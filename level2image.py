@@ -231,14 +231,24 @@ for levelfile in args.levelfiles:
                 y = (linei + 1) * args.gridsize - 1 + args.padding
                 clr = cfg['colors'][char] if char in cfg['colors'] else 'grey'
 
+                custom = None
                 if char == '<':
                     char = '&lt;'
                 elif char == '>':
                     char = '&gt;'
                 elif char == '&':
                     char = '&#38;'
+                elif char in '─│┐┘└┌':
+                    pth = {'─': (0.0, 0.5, 1.0, 0.5), '│': (0.5, 0.0, 0.5, 1.0), '┐': (0.5, 1.0, 0.0, 0.5), '┘': (0.0, 0.5, 0.5, 0.0), '└': (0.5, 0.0, 1.0, 0.5), '┌': (1.0, 0.5, 0.5, 1.0)}[char]
+                    gz = args.gridsize
+                    yo = y - gz + 1
+                    char = None
+                    custom = '<path d="M %.2f %.2f L %.2f %.2f L %.2f %.2f" stroke="%s" stroke-width="1" stroke-linecap="round" fill="none"/>' % (x + gz * pth[0], yo + gz * pth[1], x + gz * 0.5, yo + gz * 0.5, x + gz * pth[2], yo + gz * pth[3], clr)
 
-                svg += '  <text x="%d" y="%d" fill="%s" style="fill-opacity:%f">%s</text>\n' % (x + 2, y - 1, clr, 1.0, char)
+                if custom != None:
+                    svg += '  ' + custom + '\n'
+                if char != None:
+                    svg += '  <text x="%d" y="%d" fill="%s" style="fill-opacity:%f">%s</text>\n' % (x + 2, y - 1, clr, 1.0, char)
                 svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%f"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, clr, 0.3)
 
     if path_tiles != None and args.path_tiles != BLOCKS_NONE:
