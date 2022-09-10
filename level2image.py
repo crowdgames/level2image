@@ -21,7 +21,7 @@ FMT_LIST            = [FMT_SVG, FMT_PDF, FMT_PNG, FMT_GIF_ANIM]
 parser = argparse.ArgumentParser(description='Create svg from level file.')
 parser.add_argument('levelfiles', type=str, nargs='+', help='Input level files.')
 parser.add_argument('--fontsize', type=int, help='Font size.', default=8)
-parser.add_argument('--gridsize', type=int, help='Grid size.', default=10)
+parser.add_argument('--gridsize', type=int, help='Grid size.', default=11)
 parser.add_argument('--cfgfile', type=str, help='Config file.')
 parser.add_argument('--fmt', type=str, choices=FMT_LIST, help='Output format, from: ' + ','.join(FMT_LIST) + '.', default=FMT_PDF)
 parser.add_argument('--stdout', action='store_true', help='Write to stdout instead of file.')
@@ -34,6 +34,7 @@ parser.add_argument('--path-color', type=str, help='Path color.', default='orang
 parser.add_argument('--misc-color', type=str, help='Misc color.', default='darkgoldenrod')
 parser.add_argument('--no-background', action='store_true', help='Don\'t use background images if present.')
 parser.add_argument('--padding', type=int, help='Padding around edges.', default=0)
+parser.add_argument('--anim-delay', type=int, help='Frame delay for animation (in ms).', default=250)
 args = parser.parse_args()
 
 if args.stdout and args.fmt != FMT_SVG:
@@ -346,4 +347,4 @@ if args.fmt == FMT_GIF_ANIM:
     imgs = [img.quantize(palette=img_meta, dither=0) for img in imgs]
 
     # disposal=2 prevents removal of duplicate frames
-    imgs[0].save(fp=outfilename, append_images=imgs[1:], save_all=True, duration=250, loop=0, optimize=False, disposal=2)
+    imgs[0].save(fp=outfilename, append_images=imgs[1:], save_all=True, duration=args.anim_delay, loop=0, optimize=False, disposal=2)
