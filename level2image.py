@@ -26,12 +26,13 @@ parser.add_argument('--cfgfile', type=str, help='Config file.')
 parser.add_argument('--fmt', type=str, choices=FMT_LIST, help='Output format, from: ' + ','.join(FMT_LIST) + '.', default=FMT_PDF)
 parser.add_argument('--stdout', action='store_true', help='Write to stdout instead of file.')
 parser.add_argument('--path-edges', type=str, choices=EDGES_LIST, help='How to display path edges, from: ' + ','.join(EDGES_LIST) + '.', default=EDGES_LINE)
-parser.add_argument('--misc-edges', type=str, choices=EDGES_LIST, help='How to display misc edges, from: ' + ','.join(EDGES_LIST) + '.', default=EDGES_LINE)
-parser.add_argument('--misc-blocks', type=str, choices=BLOCKS_LIST, help='How to display misc blocks, from: ' + ','.join(BLOCKS_LIST) + '.', default=BLOCKS_OUTLINE)
-parser.add_argument('--edges-no-arrows', action='store_true', help='Don\'t show arrows on edges.')
 parser.add_argument('--path-tiles', type=str, choices=BLOCKS_LIST, help='How to display path tiles, from: ' + ','.join(BLOCKS_LIST) + '.', default=BLOCKS_FILL)
 parser.add_argument('--path-color', type=str, help='Path color.', default='orangered')
-parser.add_argument('--misc-color', type=str, help='Misc color.', default='darkgoldenrod')
+parser.add_argument('--misc-edges', type=str, choices=EDGES_LIST, help='How to display misc edges, from: ' + ','.join(EDGES_LIST) + '.', default=EDGES_LINE)
+parser.add_argument('--misc-blocks', type=str, choices=BLOCKS_LIST, help='How to display misc blocks, from: ' + ','.join(BLOCKS_LIST) + '.', default=BLOCKS_OUTLINE)
+parser.add_argument('--misc-edges-color', type=str, help='Misc edges color.', default='darkgoldenrod')
+parser.add_argument('--misc-blocks-color', type=str, help='Misc blocks color.', default='darkgoldenrod')
+parser.add_argument('--edges-no-arrows', action='store_true', help='Don\'t show arrows on edges.')
 parser.add_argument('--no-background', action='store_true', help='Don\'t use background images if present.')
 parser.add_argument('--padding', type=int, help='Padding around edges.', default=0)
 parser.add_argument('--anim-delay', type=int, help='Frame delay for animation (in ms).', default=250)
@@ -261,19 +262,10 @@ for levelfile in args.levelfiles:
         for rr, cc in path_tiles:
             svg += svg_rect(rr, cc, 1, 1, args.padding, args.path_tiles, path_color, drawn)
 
-    if misc_blocks != None and args.misc_blocks != BLOCKS_NONE:
-        print(' - adding blocks misc')
-
-        block_color = args.misc_color
-
-        drawn = set()
-        for r1, c1, r2, c2 in misc_blocks:
-            svg += svg_rect(r1, c1, r2 - r1, c2 - c1, args.padding, args.misc_blocks, block_color, drawn)
-
     if misc_edges != None and args.misc_edges != EDGES_NONE:
         print(' - adding edges misc')
 
-        edge_color = args.misc_color
+        edge_color = args.misc_edges_color
         avoid_edges = misc_edges
 
         skip_path_edges = set()
@@ -286,6 +278,15 @@ for levelfile in args.levelfiles:
                 continue
 
             svg += svg_line(r1, c1, r2, c2, args.padding, edge_color, args.misc_edges == EDGES_ARC, avoid_edges, False, False, not args.edges_no_arrows)
+
+    if misc_blocks != None and args.misc_blocks != BLOCKS_NONE:
+        print(' - adding blocks misc')
+
+        block_color = args.misc_blocks_color
+
+        drawn = set()
+        for r1, c1, r2, c2 in misc_blocks:
+            svg += svg_rect(r1, c1, r2 - r1, c2 - c1, args.padding, args.misc_blocks, block_color, drawn)
 
     if path_edges != None and args.path_edges != EDGES_NONE:
         print(' - adding edges path')
