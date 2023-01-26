@@ -29,9 +29,11 @@ parser.add_argument('--path-edges', type=str, choices=EDGES_LIST, help='How to d
 parser.add_argument('--path-tiles', type=str, choices=BLOCKS_LIST, help='How to display path tiles, from: ' + ','.join(BLOCKS_LIST) + '.', default=BLOCKS_FILL)
 parser.add_argument('--path-color', type=str, help='Path color.', default='orangered')
 parser.add_argument('--misc-edges', type=str, choices=EDGES_LIST, help='How to display misc edges, from: ' + ','.join(EDGES_LIST) + '.', default=EDGES_LINE)
-parser.add_argument('--misc-blocks', type=str, choices=BLOCKS_LIST, help='How to display misc blocks, from: ' + ','.join(BLOCKS_LIST) + '.', default=BLOCKS_OUTLINE)
 parser.add_argument('--misc-edges-color', type=str, help='Misc edges color.', default='darkgoldenrod')
+parser.add_argument('--misc-blocks', type=str, choices=BLOCKS_LIST, help='How to display misc blocks, from: ' + ','.join(BLOCKS_LIST) + '.', default=BLOCKS_OUTLINE)
 parser.add_argument('--misc-blocks-color', type=str, help='Misc blocks color.', default='darkgoldenrod')
+parser.add_argument('--misc2-blocks', type=str, choices=BLOCKS_LIST, help='How to display misc2 blocks, from: ' + ','.join(BLOCKS_LIST) + '.', default=BLOCKS_OUTLINE)
+parser.add_argument('--misc2-blocks-color', type=str, help='Misc2 blocks color.', default='darkgoldenrod')
 parser.add_argument('--edges-no-arrows', action='store_true', help='Don\'t show arrows on edges.')
 parser.add_argument('--no-background', action='store_true', help='Don\'t use background images if present.')
 parser.add_argument('--padding', type=int, help='Padding around edges.', default=0)
@@ -165,6 +167,7 @@ for levelfile in args.levelfiles:
     path_tiles = None
     misc_edges = None
     misc_blocks = None
+    misc2_blocks = None
 
     with open(levelfile, 'rt') as lvl:
         for line in lvl:
@@ -196,6 +199,13 @@ for levelfile in args.levelfiles:
                 if misc_blocks == None:
                     misc_blocks = []
                 misc_blocks += [tuple([float(el) for el in pt.strip().split()]) for pt in line[len(TAG):].split(';')]
+                continue
+
+            TAG = 'META MISC2 BLOCKS:'
+            if line.startswith(TAG):
+                if misc2_blocks == None:
+                    misc2_blocks = []
+                misc2_blocks += [tuple([float(el) for el in pt.strip().split()]) for pt in line[len(TAG):].split(';')]
                 continue
 
             if line.startswith('META'):
@@ -287,6 +297,15 @@ for levelfile in args.levelfiles:
         drawn = set()
         for r1, c1, r2, c2 in misc_blocks:
             svg += svg_rect(r1, c1, r2 - r1, c2 - c1, args.padding, args.misc_blocks, block_color, drawn)
+
+    if misc2_blocks != None and args.misc2_blocks != BLOCKS_NONE:
+        print(' - adding blocks misc2')
+
+        block_color = args.misc2_blocks_color
+
+        drawn = set()
+        for r1, c1, r2, c2 in misc2_blocks:
+            svg += svg_rect(r1, c1, r2 - r1, c2 - c1, args.padding, args.misc2_blocks, block_color, drawn)
 
     if path_edges != None and args.path_edges != EDGES_NONE:
         print(' - adding edges path')
