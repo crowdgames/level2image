@@ -23,6 +23,7 @@ parser.add_argument('levelfiles', type=str, nargs='+', help='Input level files.'
 parser.add_argument('--fontsize', type=int, help='Font size.', default=8)
 parser.add_argument('--gridsize', type=int, help='Grid size.', default=11)
 parser.add_argument('--cfgfile', type=str, help='Config file.')
+parser.add_argument('--suffix', type=str, help='Extra suffix to add to output file.', default='out')
 parser.add_argument('--fmt', type=str, choices=FMT_LIST, help='Output format, from: ' + ','.join(FMT_LIST) + '.', default=FMT_PDF)
 parser.add_argument('--stdout', action='store_true', help='Write to stdout instead of file.')
 parser.add_argument('--path-edges', type=str, choices=EDGES_LIST, help='How to display path edges, from: ' + ','.join(EDGES_LIST) + '.', default=EDGES_LINE)
@@ -32,8 +33,8 @@ parser.add_argument('--misc-edges', type=str, choices=EDGES_LIST, help='How to d
 parser.add_argument('--misc-edges-color', type=str, help='Misc edges color.', default='darkgoldenrod')
 parser.add_argument('--misc-blocks', type=str, choices=BLOCKS_LIST, help='How to display misc blocks, from: ' + ','.join(BLOCKS_LIST) + '.', default=BLOCKS_OUTLINE)
 parser.add_argument('--misc-blocks-color', type=str, help='Misc blocks color.', default='darkgoldenrod')
-parser.add_argument('--misc-blocks2', type=str, choices=BLOCKS_LIST, help='How to display misc blocks2, from: ' + ','.join(BLOCKS_LIST) + '.', default=BLOCKS_OUTLINE)
-parser.add_argument('--misc-blocks2-color', type=str, help='Misc blocks2 color.', default='darkgoldenrod')
+parser.add_argument('--change-blocks', type=str, choices=BLOCKS_LIST, help='How to display change blocks, from: ' + ','.join(BLOCKS_LIST) + '.', default=BLOCKS_OUTLINE)
+parser.add_argument('--change-blocks-color', type=str, help='Change color.', default='darkgoldenrod')
 parser.add_argument('--edges-no-arrows', action='store_true', help='Don\'t show arrows on edges.')
 parser.add_argument('--no-background', action='store_true', help='Don\'t use background images if present.')
 parser.add_argument('--padding', type=int, help='Padding around edges.', default=0)
@@ -167,7 +168,7 @@ for levelfile in args.levelfiles:
     path_tiles = None
     misc_edges = None
     misc_blocks = None
-    misc_blocks2 = None
+    change_blocks = None
 
     with open(levelfile, 'rt') as lvl:
         for line in lvl:
@@ -201,11 +202,11 @@ for levelfile in args.levelfiles:
                 misc_blocks += [tuple([float(el) for el in pt.strip().split()]) for pt in line[len(TAG):].split(';')]
                 continue
 
-            TAG = 'META MISC BLOCKS2:'
+            TAG = 'META CHANGE BLOCKS:'
             if line.startswith(TAG):
-                if misc_blocks2 == None:
-                    misc_blocks2 = []
-                misc_blocks2 += [tuple([float(el) for el in pt.strip().split()]) for pt in line[len(TAG):].split(';')]
+                if change_blocks == None:
+                    change_blocks = []
+                change_blocks += [tuple([float(el) for el in pt.strip().split()]) for pt in line[len(TAG):].split(';')]
                 continue
 
             if line.startswith('META'):
@@ -298,14 +299,14 @@ for levelfile in args.levelfiles:
         for r1, c1, r2, c2 in misc_blocks:
             svg += svg_rect(r1, c1, r2 - r1, c2 - c1, args.padding, args.misc_blocks, block_color, drawn)
 
-    if misc_blocks2 != None and args.misc_blocks != BLOCKS_NONE:
-        print(' - adding blocks2 misc')
+    if change_blocks != None and args.change_blocks != BLOCKS_NONE:
+        print(' - adding blocks change')
 
-        block_color = args.misc_blocks2_color
+        block_color = args.change_blocks_color
 
         drawn = set()
-        for r1, c1, r2, c2 in misc_blocks2:
-            svg += svg_rect(r1, c1, r2 - r1, c2 - c1, args.padding, args.misc_blocks2, block_color, drawn)
+        for r1, c1, r2, c2 in change_blocks:
+            svg += svg_rect(r1, c1, r2 - r1, c2 - c1, args.padding, args.change_blocks, block_color, drawn)
 
     if path_edges != None and args.path_edges != EDGES_NONE:
         print(' - adding edges path')
@@ -349,13 +350,13 @@ for levelfile in args.levelfiles:
             sys.stdout.write(data)
 
         else:
-            outfilename = pathlib.Path(levelfile).with_suffix('.out' + ext)
+            outfilename = pathlib.Path(levelfile).with_suffix('.' + args.suffix + ext)
             print(' - writing', outfilename)
             outfile = open(outfilename, 'w' + mode)
             outfile.write(data)
 
 if args.fmt == FMT_GIF_ANIM:
-    outfilename = pathlib.Path(anim_name).with_suffix('.out.anim.gif')
+    outfilename = pathlib.Path(anim_name).with_suffix('.' + args.suffix + '.anim.gif')
     print(' - writing', outfilename)
     imgs = [PIL.Image.open(io.BytesIO(data)) for data in anim_data]
 
