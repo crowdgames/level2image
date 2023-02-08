@@ -1,22 +1,24 @@
 import argparse, base64, io, json, math, os, pathlib, sys
 import PIL.Image
 
-EDGES_NONE     = 'none'
-EDGES_LINE     = 'line'
-EDGES_ARC      = 'arc'
-EDGES_LIST     = [EDGES_NONE, EDGES_LINE, EDGES_ARC]
+RECT_NONE         = 'none'
+RECT_FILL         = 'fill'
+RECT_FILL_UNIQ    = 'fill-uniq'
+RECT_OUTLINE      = 'outline'
+RECT_LIST         = [RECT_NONE, RECT_FILL, RECT_FILL_UNIQ, RECT_OUTLINE]
 
-BLOCKS_NONE         = 'none'
-BLOCKS_FILL         = 'fill'
-BLOCKS_FILL_UNIQ    = 'fill-uniq'
-BLOCKS_OUTLINE      = 'outline'
-BLOCKS_LIST         = [BLOCKS_NONE, BLOCKS_FILL, BLOCKS_FILL_UNIQ, BLOCKS_OUTLINE]
+PATH_NONE         = 'none'
+PATH_LINE         = 'line'
+PATH_ARC          = 'arc'
+PATH_LINE_NA      = 'line-noarrow'
+PATH_ARC_NA       = 'arc-noarrow'
+PATH_LIST         = [PATH_NONE, PATH_LINE, PATH_ARC, PATH_LINE_NA, PATH_ARC_NA]
 
-FMT_SVG             = 'svg'
-FMT_PDF             = 'pdf'
-FMT_PNG             = 'png'
-FMT_GIF_ANIM        = 'gif-anim'
-FMT_LIST            = [FMT_SVG, FMT_PDF, FMT_PNG, FMT_GIF_ANIM]
+FMT_SVG           = 'svg'
+FMT_PDF           = 'pdf'
+FMT_PNG           = 'png'
+FMT_GIF_ANIM      = 'gif-anim'
+FMT_LIST          = [FMT_SVG, FMT_PDF, FMT_PNG, FMT_GIF_ANIM]
 
 parser = argparse.ArgumentParser(description='Create svg from level file.')
 parser.add_argument('levelfiles', type=str, nargs='+', help='Input level files.')
@@ -26,16 +28,9 @@ parser.add_argument('--cfgfile', type=str, help='Config file.')
 parser.add_argument('--suffix', type=str, help='Extra suffix to add to output file.', default='out')
 parser.add_argument('--fmt', type=str, choices=FMT_LIST, help='Output format, from: ' + ','.join(FMT_LIST) + '.', default=FMT_PDF)
 parser.add_argument('--stdout', action='store_true', help='Write to stdout instead of file.')
-parser.add_argument('--path-edges', type=str, choices=EDGES_LIST, help='How to display path edges, from: ' + ','.join(EDGES_LIST) + '.', default=EDGES_LINE)
-parser.add_argument('--path-tiles', type=str, choices=BLOCKS_LIST, help='How to display path tiles, from: ' + ','.join(BLOCKS_LIST) + '.', default=BLOCKS_FILL)
-parser.add_argument('--path-color', type=str, help='Path color.', default='orangered')
-parser.add_argument('--misc-edges', type=str, choices=EDGES_LIST, help='How to display misc edges, from: ' + ','.join(EDGES_LIST) + '.', default=EDGES_LINE)
-parser.add_argument('--misc-edges-color', type=str, help='Misc edges color.', default='darkgoldenrod')
-parser.add_argument('--misc-blocks', type=str, choices=BLOCKS_LIST, help='How to display misc blocks, from: ' + ','.join(BLOCKS_LIST) + '.', default=BLOCKS_OUTLINE)
-parser.add_argument('--misc-blocks-color', type=str, help='Misc blocks color.', default='darkgoldenrod')
-parser.add_argument('--change-blocks', type=str, choices=BLOCKS_LIST, help='How to display change blocks, from: ' + ','.join(BLOCKS_LIST) + '.', default=BLOCKS_OUTLINE)
-parser.add_argument('--change-blocks-color', type=str, help='Change color.', default='darkgoldenrod')
-parser.add_argument('--edges-no-arrows', action='store_true', help='Don\'t show arrows on edges.')
+parser.add_argument('--viz-tile', type=str, nargs=2, action='append', help='How to display tiles for a style, from: ' + ','.join(RECT_LIST) + '.')
+parser.add_argument('--viz-rect', type=str, nargs=2, action='append', help='How to display rects for a style, from: ' + ','.join(RECT_LIST) + '.')
+parser.add_argument('--viz-path', type=str, nargs=2, action='append', help='How to display paths for a style, from: ' + ','.join(PATH_LIST) + '.')
 parser.add_argument('--no-background', action='store_true', help='Don\'t use background images if present.')
 parser.add_argument('--padding', type=int, help='Padding around edges.', default=0)
 parser.add_argument('--anim-delay', type=int, help='Frame delay for animation (in ms).', default=250)
@@ -64,12 +59,12 @@ def svg_rect(r0, c0, rsz, csz, padding, style, color, drawn):
         print(' - WARNING: skipping zero-size rect: %f %f %f %f' % (r0, c0, rsz, csz))
         return ''
 
-    if style == BLOCKS_FILL_UNIQ and (r0, c0, rsz, csz) in drawn:
+    if style == RECT_FILL_UNIQ and (r0, c0, rsz, csz) in drawn:
         return ''
 
     drawn.add((r0, c0, rsz, csz))
 
-    if style == BLOCKS_FILL or style == BLOCKS_FILL_UNIQ:
+    if style == RECT_FILL or style == RECT_FILL_UNIQ:
         style_svg = 'stroke:none;fill:%s;fill-opacity:0.3' % (color)
         inset = 0
     else:
@@ -155,6 +150,53 @@ def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_
 
 
 
+draw_viz_tile = {}
+draw_viz_tile['default'] = RECT_FILL
+
+draw_viz_rect = {}
+draw_viz_rect['default'] = RECT_OUTLINE
+
+draw_viz_path = {}
+draw_viz_path['default'] = PATH_LINE
+
+if args.viz_tile != None:
+    for style, viz in args.viz_tile:
+        if viz not in RECT_LIST:
+            raise RuntimeError('unknown viz format: %s' % viz)
+        draw_viz_tile[style] = viz
+
+if args.viz_rect != None:
+    for style, viz in args.viz_rect:
+        if viz not in RECT_LIST:
+            raise RuntimeError('unknown viz format: %s' % viz)
+        draw_viz_rect[style] = viz
+
+if args.viz_path != None:
+    for style, viz in args.viz_path:
+        if viz not in PATH_LIST:
+            raise RuntimeError('unknown viz format: %s' % viz)
+        draw_viz_path[style] = viz
+
+def get_draw_color(style):
+    return cfg['draw'][style] if style in cfg['draw'] else 'grey'
+
+def get_draw_viz_tile(style):
+    if style not in draw_viz_tile:
+        return draw_viz_tile['default']
+    return draw_viz_tile[style]
+
+def get_draw_viz_rect(style):
+    if style not in draw_viz_rect:
+        return draw_viz_rect['default']
+    return draw_viz_rect[style]
+
+def get_draw_viz_path(style):
+    if style not in draw_viz_path:
+        return draw_viz_path['default']
+    return draw_viz_path[style]
+
+
+
 anim_name, anim_data = None, None
 if args.fmt == FMT_GIF_ANIM:
     anim_data = []
@@ -164,53 +206,49 @@ for levelfile in args.levelfiles:
 
     lines = []
     max_line_len = 0
-    path_edges = None
-    path_tiles = None
-    misc_edges = None
-    misc_blocks = None
-    change_blocks = None
+
+    draw_path = {}
+    draw_rects = {}
+    draw_tiles = {}
+
+    def add_draw_data(draw_dict, line):
+        splt = line.split('-')
+        if len(splt) == 1:
+            style = 'default'
+            line = splt[0]
+        elif len(splt) == 2:
+            style = splt[0].strip()
+            line = splt[1]
+        else:
+            raise RuntimeError('unknown DRAW format: %s' % line)
+
+        points = [tuple([float(el) for el in pt.strip().split()]) for pt in line.split(';')]
+
+        if style not in draw_dict:
+            draw_dict[style] = []
+        draw_dict[style].append(points)
 
     with open(levelfile, 'rt') as lvl:
         for line in lvl:
             line = line.rstrip('\n')
 
-            TAG = 'META PATH EDGES:'
+            TAG = 'DRAW PATH:'
             if line.startswith(TAG):
-                if path_edges != None:
-                    raise RuntimeError('multiple path edges found')
-                path_edges = [tuple([float(el) for el in pt.strip().split()]) for pt in line[len(TAG):].split(';')]
+                add_draw_data(draw_path, line[len(TAG):])
                 continue
 
-            TAG = 'META PATH TILES:'
+            TAG = 'DRAW RECTS:'
             if line.startswith(TAG):
-                if path_tiles != None:
-                    raise RuntimeError('multiple path tiles found')
-                path_tiles = [tuple([float(el) for el in pt.strip().split()]) for pt in line[len(TAG):].split(';')]
+                add_draw_data(draw_rects, line[len(TAG):])
                 continue
 
-            TAG = 'META MISC EDGES:'
+            TAG = 'DRAW TILES:'
             if line.startswith(TAG):
-                if misc_edges == None:
-                    misc_edges = []
-                misc_edges += [tuple([float(el) for el in pt.strip().split()]) for pt in line[len(TAG):].split(';')]
+                add_draw_data(draw_tiles, line[len(TAG):])
                 continue
 
-            TAG = 'META MISC BLOCKS:'
-            if line.startswith(TAG):
-                if misc_blocks == None:
-                    misc_blocks = []
-                misc_blocks += [tuple([float(el) for el in pt.strip().split()]) for pt in line[len(TAG):].split(';')]
-                continue
-
-            TAG = 'META CHANGE BLOCKS:'
-            if line.startswith(TAG):
-                if change_blocks == None:
-                    change_blocks = []
-                change_blocks += [tuple([float(el) for el in pt.strip().split()]) for pt in line[len(TAG):].split(';')]
-                continue
-
-            if line.startswith('META'):
-                print(' - WARNING: unrecognized META line: %s' % line)
+            if line.startswith('DRAW'):
+                print(' - WARNING: unrecognized DRAW line: %s' % line)
                 continue
 
             if line.startswith('REM'):
@@ -242,7 +280,7 @@ for levelfile in args.levelfiles:
             for chari, char in enumerate(line):
                 x = chari * args.gridsize + args.padding
                 y = (linei + 1) * args.gridsize - 1 + args.padding
-                clr = cfg['colors'][char] if char in cfg['colors'] else 'grey'
+                clr = cfg['tile'][char] if char in cfg['tile'] else 'grey'
 
                 custom = None
                 if char == '<':
@@ -264,58 +302,39 @@ for levelfile in args.levelfiles:
                     svg += '  <text x="%f" y="%f" dominant-baseline="middle" text-anchor="middle" fill="%s" style="fill-opacity:%f">%s</text>\n' % (x + 0.5 * args.gridsize, y - 0.34 * args.gridsize, clr, 1.0, char)
                 svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%f"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, clr, 0.3)
 
-    if path_tiles != None and args.path_tiles != BLOCKS_NONE:
-        print(' - adding tiles path')
+    for style, points_list in draw_tiles.items():
+        for points in points_list:
+            print(' - adding tiles %s' % style)
 
-        path_color = args.path_color
+            tile_color = get_draw_color(style)
+            tile_viz = get_draw_viz_tile(style)
 
-        drawn = set()
-        for rr, cc in path_tiles:
-            svg += svg_rect(rr, cc, 1, 1, args.padding, args.path_tiles, path_color, drawn)
+            drawn = set()
+            for rr, cc in points:
+                svg += svg_rect(rr, cc, 1, 1, args.padding, tile_viz, tile_color, drawn)
 
-    if misc_edges != None and args.misc_edges != EDGES_NONE:
-        print(' - adding edges misc')
+    for style, points_list in draw_rects.items():
+        for points in points_list:
+            print(' - adding rects %s' % style)
 
-        edge_color = args.misc_edges_color
-        avoid_edges = misc_edges
+            rect_color = get_draw_color(style)
+            rect_viz = get_draw_viz_rect(style)
 
-        skip_path_edges = set()
-        if path_edges != None and args.path_edges != EDGES_NONE:
-            for r1, c1, r2, c2 in path_edges:
-                skip_path_edges.add((r1, c1, r2, c2))
+            drawn = set()
+            for r1, c1, r2, c2 in points:
+                svg += svg_rect(r1, c1, r2 - r1, c2 - c1, args.padding, rect_viz, rect_color, drawn)
 
-        for r1, c1, r2, c2 in misc_edges:
-            if (r1, c1, r2, c2) in skip_path_edges:
-                continue
+    for style, points_list in draw_path.items():
+        for points in points_list:
+            print(' - adding path %s' % style)
 
-            svg += svg_line(r1, c1, r2, c2, args.padding, edge_color, args.misc_edges == EDGES_ARC, avoid_edges, False, False, not args.edges_no_arrows)
+            path_color = get_draw_color(style)
+            path_viz = get_draw_viz_path(style)
 
-    if misc_blocks != None and args.misc_blocks != BLOCKS_NONE:
-        print(' - adding blocks misc')
+            avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in points]
 
-        block_color = args.misc_blocks_color
-
-        drawn = set()
-        for r1, c1, r2, c2 in misc_blocks:
-            svg += svg_rect(r1, c1, r2 - r1, c2 - c1, args.padding, args.misc_blocks, block_color, drawn)
-
-    if change_blocks != None and args.change_blocks != BLOCKS_NONE:
-        print(' - adding blocks change')
-
-        block_color = args.change_blocks_color
-
-        drawn = set()
-        for r1, c1, r2, c2 in change_blocks:
-            svg += svg_rect(r1, c1, r2 - r1, c2 - c1, args.padding, args.change_blocks, block_color, drawn)
-
-    if path_edges != None and args.path_edges != EDGES_NONE:
-        print(' - adding edges path')
-
-        path_color = args.path_color
-        avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in path_edges]
-
-        for ii, (r1, c1, r2, c2) in enumerate(path_edges):
-            svg += svg_line(r1, c1, r2, c2, args.padding, path_color, args.path_edges == EDGES_ARC, avoid_edges, ii == 0, ii + 1 == len(path_edges), not args.edges_no_arrows)
+            for ii, (r1, c1, r2, c2) in enumerate(points):
+                svg += svg_line(r1, c1, r2, c2, args.padding, path_color, path_viz == PATH_ARC, avoid_edges, ii == 0, ii + 1 == len(points), '-noarrow' not in path_viz)
 
     svg += '</svg>\n'
 

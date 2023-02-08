@@ -1,5 +1,5 @@
 {
-    "colors": {
+    "tile": {
         "@": "firebrick",
         "H": "firebrick",
         "-": "lightgrey",
@@ -27,5 +27,10 @@
         "]": "lightgreen",
         "D": "orange",
         "d": "orange"
+    },
+    "draw": {
+	"path": "orangered",
+	"misc": "darkgoldenrod",
+	"note": "black"
     }
 }
