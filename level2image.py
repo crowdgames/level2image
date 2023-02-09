@@ -238,30 +238,30 @@ for levelfile in args.levelfiles:
         for line in lvl:
             line = line.rstrip('\n')
 
-            TAG = 'DRAW PATH:'
-            if line.startswith(TAG):
-                add_draw_data(draw_path, True, line[len(TAG):])
-                continue
+            if line.startswith('META'):
+                TAG = 'META DRAW PATH:'
+                if line.startswith(TAG):
+                    add_draw_data(draw_path, True, line[len(TAG):])
+                    continue
 
-            TAG = 'DRAW RECTS:'
-            if line.startswith(TAG):
-                add_draw_data(draw_rects, False, line[len(TAG):])
-                continue
+                TAG = 'META DRAW RECTS:'
+                if line.startswith(TAG):
+                    add_draw_data(draw_rects, False, line[len(TAG):])
+                    continue
 
-            TAG = 'DRAW TILES:'
-            if line.startswith(TAG):
-                add_draw_data(draw_tiles, False, line[len(TAG):])
-                continue
+                TAG = 'META DRAW TILES:'
+                if line.startswith(TAG):
+                    add_draw_data(draw_tiles, False, line[len(TAG):])
+                    continue
 
-            if line.startswith('DRAW'):
-                print(' - WARNING: unrecognized DRAW line: %s' % line)
-                continue
+                if line.startswith('META REM'):
+                    continue
 
-            if line.startswith('REM'):
-                continue
+                print(' - WARNING: unrecognized META line: %s' % line)
 
-            lines.append(line)
-            max_line_len = max(max_line_len, len(line))
+            else:
+                lines.append(line)
+                max_line_len = max(max_line_len, len(line))
 
     svg = ''
 
