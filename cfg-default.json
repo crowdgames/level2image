@@ -30,7 +30,8 @@
     },
     "draw": {
 	"path": "orangered",
-	"misc": "darkgoldenrod",
+	"offpath": "darkgoldenrod",
+	"misc": "darkgreen",
 	"level": "grey",
 	"change": "black"
     }
