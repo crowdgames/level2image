@@ -86,14 +86,20 @@ def svg_rect(r0, c0, rsz, csz, padding, style, color, drawn):
     return '  <rect x="%f" y="%f" width="%f" height="%f" style="%s"/>\n' % (x0, y0, xsz, ysz, style_svg)
 
 def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_circle, to_circle, to_arrow):
-    if (r1, c1) == (r2, c2):
-        print(' - WARNING: skipping zero-length edge: %f %f %f %f' % (r1, c1, r2, c2))
-        return ''
-
     x1 = (c1 + 0.5) * args.gridsize + padding
     y1 = (r1 + 0.5) * args.gridsize + padding
     x2 = (c2 + 0.5) * args.gridsize + padding
     y2 = (r2 + 0.5) * args.gridsize + padding
+
+    ret = ''
+    if from_circle:
+        ret += '  <circle cx="%.2f" cy="%.2f" r="2" stroke="none" fill="%s"/>\n' % (x1, y1, color)
+    if to_circle:
+        ret += '  <circle cx="%.2f" cy="%.2f" r="2" stroke="none" fill="%s"/>\n' % (x2, y2, color)
+
+    if (r1, c1) == (r2, c2):
+        print(' - WARNING: skipping zero-length edge: %f %f %f %f' % (r1, c1, r2, c2))
+        return ret
 
     if x1 < x2:
         orthx = (y2 - y1) / 4
@@ -111,12 +117,6 @@ def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_
     midy = (y1 + y2) / 2
     curvex = midx + orthx
     curvey = midy + orthy
-
-    ret = ''
-    if from_circle:
-        ret += '  <circle cx="%.2f" cy="%.2f" r="2" stroke="none" fill="%s"/>\n' % (x1, y1, color)
-    if to_circle:
-        ret += '  <circle cx="%.2f" cy="%.2f" r="2" stroke="none" fill="%s"/>\n' % (x2, y2, color)
 
     as_arc = require_arc
     if not as_arc and arc_avoid_edges:
@@ -211,7 +211,7 @@ for levelfile in args.levelfiles:
     draw_rects = {}
     draw_tiles = {}
 
-    def add_draw_data(draw_dict, line):
+    def add_draw_data(draw_dict, allow_breaks, line):
         splt = line.split('-')
         if len(splt) == 1:
             style = 'default'
@@ -222,7 +222,13 @@ for levelfile in args.levelfiles:
         else:
             raise RuntimeError('unknown DRAW format: %s' % line)
 
-        points = [tuple([float(el) for el in pt.strip().split()]) for pt in line.split(';')]
+        if allow_breaks:
+            points = []
+            point_lines = line.split(';')
+            for point_line in point_lines:
+                points.append([tuple([float(el) for el in pt.strip().split()]) for pt in point_line.split(',')])
+        else:
+            points = [tuple([float(el) for el in pt.strip().split()]) for pt in line.split(',')]
 
         if style not in draw_dict:
             draw_dict[style] = []
@@ -234,17 +240,17 @@ for levelfile in args.levelfiles:
 
             TAG = 'DRAW PATH:'
             if line.startswith(TAG):
-                add_draw_data(draw_path, line[len(TAG):])
+                add_draw_data(draw_path, True, line[len(TAG):])
                 continue
 
             TAG = 'DRAW RECTS:'
             if line.startswith(TAG):
-                add_draw_data(draw_rects, line[len(TAG):])
+                add_draw_data(draw_rects, False, line[len(TAG):])
                 continue
 
             TAG = 'DRAW TILES:'
             if line.startswith(TAG):
-                add_draw_data(draw_tiles, line[len(TAG):])
+                add_draw_data(draw_tiles, False, line[len(TAG):])
                 continue
 
             if line.startswith('DRAW'):
@@ -331,10 +337,18 @@ for levelfile in args.levelfiles:
             path_color = get_draw_color(style)
             path_viz = get_draw_viz_path(style)
 
-            avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in points]
+            avoid_edges = []
+            for pts in points:
+                pt_pairs = list(zip(pts, pts[1:]))
+                for (r1, c1), (r2, c2) in pt_pairs:
+                    avoid_edges.append((r1, c1, r2, c2))
 
-            for ii, (r1, c1, r2, c2) in enumerate(points):
-                svg += svg_line(r1, c1, r2, c2, args.padding, path_color, path_viz == PATH_ARC, avoid_edges, ii == 0, ii + 1 == len(points), '-noarrow' not in path_viz)
+            for jj, pts in enumerate(points):
+                pt_pairs = list(zip(pts, pts[1:]))
+                for ii, ((r1, c1), (r2, c2)) in enumerate(pt_pairs):
+                    is_first = (jj == 0) and (ii == 0)
+                    is_last = (jj + 1 == len(points)) and (ii + 1 == len(pt_pairs))
+                    svg += svg_line(r1, c1, r2, c2, args.padding, path_color, path_viz == PATH_ARC, avoid_edges, is_first, is_last, '-noarrow' not in path_viz)
 
     svg += '</svg>\n'
 
