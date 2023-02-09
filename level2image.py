@@ -211,8 +211,8 @@ for levelfile in args.levelfiles:
     draw_rects = {}
     draw_tiles = {}
 
-    def add_draw_data(draw_dict, allow_breaks, line):
-        splt = line.split('-')
+    def add_draw_data(draw_dict, line):
+        splt = line.split(';')
         if len(splt) == 1:
             style = 'default'
             line = splt[0]
@@ -222,13 +222,7 @@ for levelfile in args.levelfiles:
         else:
             raise RuntimeError('unknown DRAW format: %s' % line)
 
-        if allow_breaks:
-            points = []
-            point_lines = line.split(';')
-            for point_line in point_lines:
-                points.append([tuple([float(el) for el in pt.strip().split()]) for pt in point_line.split(',')])
-        else:
-            points = [tuple([float(el) for el in pt.strip().split()]) for pt in line.split(',')]
+        points = [tuple([float(el) for el in pt.strip().split()]) for pt in line.split(',')]
 
         if style not in draw_dict:
             draw_dict[style] = []
@@ -241,17 +235,17 @@ for levelfile in args.levelfiles:
             if line.startswith('META'):
                 TAG = 'META DRAW PATH:'
                 if line.startswith(TAG):
-                    add_draw_data(draw_path, True, line[len(TAG):])
+                    add_draw_data(draw_path, line[len(TAG):])
                     continue
 
                 TAG = 'META DRAW RECTS:'
                 if line.startswith(TAG):
-                    add_draw_data(draw_rects, False, line[len(TAG):])
+                    add_draw_data(draw_rects, line[len(TAG):])
                     continue
 
                 TAG = 'META DRAW TILES:'
                 if line.startswith(TAG):
-                    add_draw_data(draw_tiles, False, line[len(TAG):])
+                    add_draw_data(draw_tiles, line[len(TAG):])
                     continue
 
                 if line.startswith('META REM'):
@@ -337,18 +331,10 @@ for levelfile in args.levelfiles:
             path_color = get_draw_color(style)
             path_viz = get_draw_viz_path(style)
 
-            avoid_edges = []
-            for pts in points:
-                pt_pairs = list(zip(pts, pts[1:]))
-                for (r1, c1), (r2, c2) in pt_pairs:
-                    avoid_edges.append((r1, c1, r2, c2))
+            avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in points]
 
-            for jj, pts in enumerate(points):
-                pt_pairs = list(zip(pts, pts[1:]))
-                for ii, ((r1, c1), (r2, c2)) in enumerate(pt_pairs):
-                    is_first = (jj == 0) and (ii == 0)
-                    is_last = (jj + 1 == len(points)) and (ii + 1 == len(pt_pairs))
-                    svg += svg_line(r1, c1, r2, c2, args.padding, path_color, path_viz == PATH_ARC, avoid_edges, is_first, is_last, '-noarrow' not in path_viz)
+            for ii, (r1, c1, r2, c2) in enumerate(points):
+                svg += svg_line(r1, c1, r2, c2, args.padding, path_color, path_viz == PATH_ARC, avoid_edges, ii == 0, ii + 1 == len(points), '-noarrow' not in path_viz)
 
     svg += '</svg>\n'
 
