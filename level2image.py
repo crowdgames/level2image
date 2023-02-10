@@ -14,11 +14,11 @@ PATH_LINE_NA      = 'line-noarrow'
 PATH_ARC_NA       = 'arc-noarrow'
 PATH_LIST         = [PATH_NONE, PATH_LINE, PATH_ARC, PATH_LINE_NA, PATH_ARC_NA]
 
-DRAW_PATH         = 'path'
-DRAW_LINE         = 'line'
-DRAW_TILE         = 'tile'
-DRAW_RECT         = 'rect'
-DRAW_LIST         = [DRAW_PATH, DRAW_LINE, DRAW_TILE, DRAW_RECT]
+SHAPE_PATH        = 'path'
+SHAPE_LINE        = 'line'
+SHAPE_TILE        = 'tile'
+SHAPE_RECT        = 'rect'
+SHAPE_LIST        = [SHAPE_PATH, SHAPE_LINE, SHAPE_TILE, SHAPE_RECT]
 
 FMT_SVG           = 'svg'
 FMT_PDF           = 'pdf'
@@ -34,7 +34,8 @@ parser.add_argument('--cfgfile', type=str, help='Config file.')
 parser.add_argument('--suffix', type=str, help='Extra suffix to add to output file.', default='out')
 parser.add_argument('--fmt', type=str, choices=FMT_LIST, help='Output format, from: ' + ','.join(FMT_LIST) + '.', default=FMT_PDF)
 parser.add_argument('--stdout', action='store_true', help='Write to stdout instead of file.')
-parser.add_argument('--viz', type=str, nargs=3, action='append', help='How to display a style, from: ' + ','.join(DRAW_LIST) + ' and ' + ','.join(PATH_LIST) + ' or ' + ','.join(RECT_LIST))
+parser.add_argument('--viz', type=str, nargs=3, action='append', help='How to display a style, from: ' + ','.join(SHAPE_LIST) + ' and ' + ','.join(PATH_LIST) + ' or ' + ','.join(RECT_LIST))
+parser.add_argument('--no-viz', type=str, action='append', help='Hide a style')
 parser.add_argument('--no-background', action='store_true', help='Don\'t use background images if present.')
 parser.add_argument('--padding', type=int, help='Padding around edges.', default=0)
 parser.add_argument('--anim-delay', type=int, help='Frame delay for animation (in ms).', default=250)
@@ -156,22 +157,29 @@ def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_
 
 draw_viz = {}
 draw_viz['default'] = {}
-draw_viz['default'][DRAW_PATH] = PATH_LINE
-draw_viz['default'][DRAW_LINE] = PATH_LINE
-draw_viz['default'][DRAW_RECT] = RECT_OUTLINE
-draw_viz['default'][DRAW_TILE] = RECT_FILL
+draw_viz['default'][SHAPE_PATH] = PATH_LINE
+draw_viz['default'][SHAPE_LINE] = PATH_LINE
+draw_viz['default'][SHAPE_RECT] = RECT_OUTLINE
+draw_viz['default'][SHAPE_TILE] = RECT_FILL
 
 if args.viz != None:
     for style, shape, viz in args.viz:
+        if shape not in SHAPE_LIST:
+            raise RuntimeError('unknown shape format: %s' % shape)
+        if (shape in [SHAPE_PATH, SHAPE_LINE] and viz not in PATH_LIST) or (shape in [SHAPE_RECT, SHAPE_TILE] and viz not in RECT_LIST):
+            raise RuntimeError('shape and viz mismatch: %s %s' % (shape, viz))
+
         if style not in draw_viz:
             draw_viz[style] = {}
-        if shape == '-':
-            draw_viz[style][DRAW_PATH] = viz
-            draw_viz[style][DRAW_LINE] = viz
-            draw_viz[style][DRAW_RECT] = viz
-            draw_viz[style][DRAW_TILE] = viz
-        else:
-            draw_viz[style][shape] = viz
+        draw_viz[style][shape] = viz
+
+if args.no_viz != None:
+    for style in args.no_viz:
+        draw_viz[style] = {}
+        draw_viz[style][SHAPE_PATH] = PATH_NONE
+        draw_viz[style][SHAPE_LINE] = PATH_NONE
+        draw_viz[style][SHAPE_RECT] = RECT_NONE
+        draw_viz[style][SHAPE_TILE] = RECT_NONE
 
 def get_draw_color(style):
     return cfg['draw'][style] if style in cfg['draw'] else 'grey'
@@ -304,7 +312,7 @@ for levelfile in args.levelfiles:
     for style, points_list in draw_tile.items():
         for points in points_list:
             tile_color = get_draw_color(style)
-            tile_viz = get_draw_viz(style, DRAW_TILE)
+            tile_viz = get_draw_viz(style, SHAPE_TILE)
 
             if tile_viz == RECT_NONE:
                 continue
@@ -318,7 +326,7 @@ for levelfile in args.levelfiles:
     for style, points_list in draw_rect.items():
         for points in points_list:
             rect_color = get_draw_color(style)
-            rect_viz = get_draw_viz(style, DRAW_RECT)
+            rect_viz = get_draw_viz(style, SHAPE_RECT)
 
             if rect_viz == RECT_NONE:
                 continue
@@ -332,7 +340,7 @@ for levelfile in args.levelfiles:
     for style, points_list in draw_line.items():
         for points in points_list:
             line_color = get_draw_color(style)
-            line_viz = get_draw_viz(style, DRAW_LINE)
+            line_viz = get_draw_viz(style, SHAPE_LINE)
 
             if line_viz == PATH_NONE:
                 continue
@@ -347,7 +355,7 @@ for levelfile in args.levelfiles:
     for style, points_list in draw_path.items():
         for points in points_list:
             path_color = get_draw_color(style)
-            path_viz = get_draw_viz(style, DRAW_PATH)
+            path_viz = get_draw_viz(style, SHAPE_PATH)
 
             if path_viz == PATH_NONE:
                 continue
