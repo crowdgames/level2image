@@ -201,17 +201,22 @@ for levelfile in args.levelfiles:
     draw_tile = {}
 
     def add_draw_data(draw_dict, line):
+        line = line.strip()
         splt = line.split(';')
         if len(splt) == 1:
             style = 'default'
-            line = splt[0]
+            points_str = splt[0].strip()
         elif len(splt) == 2:
             style = splt[0].strip()
-            line = splt[1]
+            points_str = splt[1].strip()
         else:
             raise RuntimeError('unknown DRAW format: %s' % line)
 
-        points = [tuple([float(el) for el in pt.strip().split()]) for pt in line.split(',')]
+        if len(points_str) == 0:
+            print(' - WARNING: empty DRAW line: %s' % line)
+            points = []
+        else:
+            points = [tuple([float(el) for el in pt.strip().split()]) for pt in points_str.split(',')]
 
         if style not in draw_dict:
             draw_dict[style] = []
