@@ -280,7 +280,7 @@ for levelfile in args.levelfiles:
                 pngdata = base64.b64encode(pngfile.read()).decode('ascii')
 
     if pngdata:
-        svg += '  <image width="%d" height="%d" xlink:href="data:image/png;base64,%s"/>\n' % (max_line_len * args.gridsize, len(lines) * args.gridsize, pngdata)
+        svg += '  <image x="0" y="0" width="%d" height="%d" xlink:href="data:image/png;base64,%s"/>\n' % (max_line_len * args.gridsize, len(lines) * args.gridsize, pngdata)
 
     else:
         for linei, line in enumerate(lines):
