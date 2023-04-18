@@ -12,13 +12,19 @@ PATH_LINE         = 'line'
 PATH_ARC          = 'arc'
 PATH_LINE_NA      = 'line-noarrow'
 PATH_ARC_NA       = 'arc-noarrow'
-PATH_LIST         = [PATH_NONE, PATH_LINE, PATH_ARC, PATH_LINE_NA, PATH_ARC_NA]
+PATH_LINE_DASH    = 'line-dash'
+PATH_ARC_DASH     = 'arc-dash'
+PATH_LINE_THICK   = 'line-thick'
+PATH_ARC_THICK    = 'arc-thick'
+PATH_LIST         = [PATH_NONE, PATH_LINE, PATH_ARC, PATH_LINE_NA, PATH_ARC_NA, PATH_LINE_DASH, PATH_ARC_DASH, PATH_LINE_THICK, PATH_ARC_THICK]
 
 SHAPE_PATH        = 'path'
 SHAPE_LINE        = 'line'
 SHAPE_TILE        = 'tile'
 SHAPE_RECT        = 'rect'
 SHAPE_LIST        = [SHAPE_PATH, SHAPE_LINE, SHAPE_TILE, SHAPE_RECT]
+
+KEY_COLOR         = 'color'
 
 FMT_SVG           = 'svg'
 FMT_PDF           = 'pdf'
@@ -34,7 +40,7 @@ parser.add_argument('--cfgfile', type=str, help='Config file.')
 parser.add_argument('--suffix', type=str, help='Extra suffix to add to output file.', default='out')
 parser.add_argument('--fmt', type=str, choices=FMT_LIST, help='Output format, from: ' + ','.join(FMT_LIST) + '.', default=FMT_PDF)
 parser.add_argument('--stdout', action='store_true', help='Write to stdout instead of file.')
-parser.add_argument('--viz', type=str, nargs=3, action='append', help='How to display a style, from: ' + ','.join(SHAPE_LIST) + ' and ' + ','.join(PATH_LIST) + ' or ' + ','.join(RECT_LIST))
+parser.add_argument('--viz', type=str, nargs=3, action='append', help='How to display a style, from: ' + ','.join(SHAPE_LIST) + ' and ' + ','.join(PATH_LIST) + ' or ' + ','.join(RECT_LIST) + ' or color.')
 parser.add_argument('--no-viz', type=str, action='append', help='Hide a style')
 parser.add_argument('--no-background', action='store_true', help='Don\'t use background images if present.')
 parser.add_argument('--padding', type=int, help='Padding around edges.', default=0)
@@ -90,17 +96,33 @@ def svg_rect(r0, c0, rsz, csz, padding, style, color, drawn):
 
     return '  <rect x="%f" y="%f" width="%f" height="%f" style="%s"/>\n' % (x0, y0, xsz, ysz, style_svg)
 
-def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_circle, to_circle, to_arrow):
+def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_circle, to_circle, to_arrow, dash, thick):
     x1 = (c1 + 0.5) * args.gridsize + padding
     y1 = (r1 + 0.5) * args.gridsize + padding
     x2 = (c2 + 0.5) * args.gridsize + padding
     y2 = (r2 + 0.5) * args.gridsize + padding
 
+    opts_shape = ''
+    if thick:
+        opts_shape += (' stroke="%s"' % color)
+        opts_shape += ' stroke-width="2"'
+    else:
+        opts_shape += ' stroke="none"'
+
+    opts_line = ''
+    if dash:
+        opts_line += ' stroke-dasharray="3"'
+
+    if thick:
+        opts_line += ' stroke-width="2"'
+    else:
+        opts_line += ' stroke-width="1"'
+
     ret = ''
     if from_circle:
-        ret += '  <circle cx="%.2f" cy="%.2f" r="2" stroke="none" fill="%s"/>\n' % (x1, y1, color)
+        ret += '  <circle cx="%.2f" cy="%.2f" r="2" fill="%s"%s/>\n' % (x1, y1, color, opts_shape)
     if to_circle:
-        ret += '  <circle cx="%.2f" cy="%.2f" r="2" stroke="none" fill="%s"/>\n' % (x2, y2, color)
+        ret += '  <circle cx="%.2f" cy="%.2f" r="2" fill="%s"%s/>\n' % (x2, y2, color, opts_shape)
 
     if (r1, c1) == (r2, c2):
         print(' - WARNING: skipping zero-length edge: %f %f %f %f' % (r1, c1, r2, c2))
@@ -144,12 +166,13 @@ def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_
             rotate = math.degrees(math.atan2(y2 - (midy + adjust * orthy), x2 - (midx + adjust * orthx)))
         else:
             rotate = math.degrees(math.atan2(y2 - y1, x2 - x1))
-        ret += '  <g transform="translate(%.2f %.2f) rotate(%.2f)"><polygon points="0 0, -4 -2, -4 2" stroke="none" fill="%s"/></g>\n' % (x2, y2, rotate, color)
+
+        ret += '  <g transform="translate(%.2f %.2f) rotate(%.2f)"><polygon points="0 0, -4 -2, -4 2" fill="%s"%s/></g>\n' % (x2, y2, rotate, color, opts_shape)
 
     if as_arc:
-        ret += '  <path d="M %.2f %.2f Q %.2f %.2f %.2f %.2f" stroke="%s" stroke-width="1" stroke-linecap="round" fill="none"/>\n' % (x1, y1, curvex, curvey, x2, y2, color)
+        ret += '  <path d="M %.2f %.2f Q %.2f %.2f %.2f %.2f" stroke="%s" stroke-linecap="round" fill="none"%s/>\n' % (x1, y1, curvex, curvey, x2, y2, color, opts_line)
     else:
-        ret += '  <line x1="%.2f" y1="%.2f" x2="%.2f" y2="%.2f" stroke="%s" stroke-width="1" stroke-linecap="round"/>\n' % (x1, y1, x2, y2, color)
+        ret += '  <line x1="%.2f" y1="%.2f" x2="%.2f" y2="%.2f" stroke="%s" stroke-linecap="round"%s/>\n' % (x1, y1, x2, y2, color, opts_line)
 
     return ret
 
@@ -161,10 +184,11 @@ draw_viz['default'][SHAPE_PATH] = PATH_LINE
 draw_viz['default'][SHAPE_LINE] = PATH_LINE
 draw_viz['default'][SHAPE_RECT] = RECT_OUTLINE
 draw_viz['default'][SHAPE_TILE] = RECT_FILL
+draw_viz['default'][KEY_COLOR] = 'gray'
 
 if args.viz != None:
     for style, shape, viz in args.viz:
-        if shape not in SHAPE_LIST:
+        if shape not in SHAPE_LIST + [KEY_COLOR]:
             raise RuntimeError('unknown shape format: %s' % shape)
         if (shape in [SHAPE_PATH, SHAPE_LINE] and viz not in PATH_LIST) or (shape in [SHAPE_RECT, SHAPE_TILE] and viz not in RECT_LIST):
             raise RuntimeError('shape and viz mismatch: %s %s' % (shape, viz))
@@ -182,6 +206,8 @@ if args.no_viz != None:
         draw_viz[style][SHAPE_TILE] = RECT_NONE
 
 def get_draw_color(style):
+    if style in draw_viz and KEY_COLOR in draw_viz[style]:
+        return draw_viz[style][KEY_COLOR]
     return cfg['draw'][style] if style in cfg['draw'] else 'grey'
 
 def get_draw_viz(style, shape):
@@ -350,7 +376,7 @@ for levelfile in args.levelfiles:
             avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in points]
 
             for ii, (r1, c1, r2, c2) in enumerate(points):
-                svg += svg_line(r1, c1, r2, c2, args.padding, line_color, line_viz == PATH_ARC, avoid_edges, False, False, '-noarrow' not in line_viz)
+                svg += svg_line(r1, c1, r2, c2, args.padding, line_color, line_viz == PATH_ARC, avoid_edges, False, False, '-noarrow' not in line_viz, '-dash' in line_viz, '-thick' in line_viz)
 
     for style, points_list in draw_path.items():
         for points in points_list:
@@ -365,7 +391,7 @@ for levelfile in args.levelfiles:
             avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in points]
 
             for ii, (r1, c1, r2, c2) in enumerate(points):
-                svg += svg_line(r1, c1, r2, c2, args.padding, path_color, path_viz == PATH_ARC, avoid_edges, ii == 0, ii + 1 == len(points), '-noarrow' not in path_viz)
+                svg += svg_line(r1, c1, r2, c2, args.padding, path_color, path_viz == PATH_ARC, avoid_edges, ii == 0, ii + 1 == len(points), '-noarrow' not in path_viz, '-dash' in path_viz, '-thick' in path_viz)
 
     svg += '</svg>\n'
 
