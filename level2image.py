@@ -39,6 +39,7 @@ parser.add_argument('--gridsize', type=int, help='Grid size.', default=11)
 parser.add_argument('--cfgfile', type=str, help='Config file.')
 parser.add_argument('--suffix', type=str, help='Extra suffix to add to output file.', default='out')
 parser.add_argument('--fmt', type=str, choices=FMT_LIST, help='Output format, from: ' + ','.join(FMT_LIST) + '.', default=FMT_PDF)
+parser.add_argument('--blank', action='store_true', help='Don\t output blank tiles')
 parser.add_argument('--stdout', action='store_true', help='Write to stdout instead of file.')
 parser.add_argument('--viz', type=str, nargs=3, action='append', help='How to display a style, from: ' + ','.join(SHAPE_LIST) + ' and ' + ','.join(PATH_LIST) + ' or ' + ','.join(RECT_LIST) + ' or color.')
 parser.add_argument('--no-viz', type=str, action='append', help='Hide a style')
@@ -184,7 +185,7 @@ draw_viz['default'][SHAPE_PATH] = PATH_LINE
 draw_viz['default'][SHAPE_LINE] = PATH_LINE
 draw_viz['default'][SHAPE_RECT] = RECT_OUTLINE
 draw_viz['default'][SHAPE_TILE] = RECT_FILL
-draw_viz['default'][KEY_COLOR] = 'gray'
+draw_viz['default'][KEY_COLOR] = 'grey'
 
 if args.viz != None:
     for style, shape, viz in args.viz:
@@ -311,6 +312,9 @@ for levelfile in args.levelfiles:
     else:
         for linei, line in enumerate(lines):
             for chari, char in enumerate(line):
+                if args.blank and char == ' ':
+                    continue
+
                 x = chari * args.gridsize + args.padding
                 y = (linei + 1) * args.gridsize - 1 + args.padding
                 clr = cfg['tile'][char] if char in cfg['tile'] else 'grey'
