@@ -39,10 +39,10 @@ parser.add_argument('--gridsize', type=int, help='Grid size.', default=11)
 parser.add_argument('--cfgfile', type=str, help='Config file.')
 parser.add_argument('--suffix', type=str, help='Extra suffix to add to output file.', default='out')
 parser.add_argument('--fmt', type=str, choices=FMT_LIST, help='Output format, from: ' + ','.join(FMT_LIST) + '.', default=FMT_PDF)
-parser.add_argument('--blank', action='store_true', help='Don\t output blank tiles')
 parser.add_argument('--stdout', action='store_true', help='Write to stdout instead of file.')
 parser.add_argument('--viz', type=str, nargs=3, action='append', help='How to display a style, from: ' + ','.join(SHAPE_LIST) + ' and ' + ','.join(PATH_LIST) + ' or ' + ','.join(RECT_LIST) + ' or color.')
 parser.add_argument('--no-viz', type=str, action='append', help='Hide a style')
+parser.add_argument('--no-blank', action='store_true', help='Don\t output blank tiles')
 parser.add_argument('--no-background', action='store_true', help='Don\'t use background images if present.')
 parser.add_argument('--padding', type=int, help='Padding around edges.', default=0)
 parser.add_argument('--anim-delay', type=int, help='Frame delay for animation (in ms).', default=250)
@@ -51,7 +51,7 @@ args = parser.parse_args()
 if args.stdout and args.fmt != FMT_SVG:
     raise RuntimeError('can only write svg to stdout.')
 
-if args.cfgfile == None:
+if args.cfgfile is None:
     args.cfgfile = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'cfg-default.json')
 
 with open(args.cfgfile, 'rt') as cfgfile:
@@ -187,7 +187,7 @@ draw_viz['default'][SHAPE_RECT] = RECT_OUTLINE
 draw_viz['default'][SHAPE_TILE] = RECT_FILL
 draw_viz['default'][KEY_COLOR] = 'grey'
 
-if args.viz != None:
+if args.viz is not None:
     for style, shape, viz in args.viz:
         if shape not in SHAPE_LIST + [KEY_COLOR]:
             raise RuntimeError('unknown shape format: %s' % shape)
@@ -198,7 +198,7 @@ if args.viz != None:
             draw_viz[style] = {}
         draw_viz[style][shape] = viz
 
-if args.no_viz != None:
+if args.no_viz is not None:
     for style in args.no_viz:
         draw_viz[style] = {}
         draw_viz[style][SHAPE_PATH] = PATH_NONE
@@ -312,7 +312,7 @@ for levelfile in args.levelfiles:
     else:
         for linei, line in enumerate(lines):
             for chari, char in enumerate(line):
-                if args.blank and char == ' ':
+                if args.no_blank and char == ' ':
                     continue
 
                 x = chari * args.gridsize + args.padding
@@ -333,9 +333,9 @@ for levelfile in args.levelfiles:
                     char = None
                     custom = '<path d="M %.2f %.2f L %.2f %.2f L %.2f %.2f" stroke="%s" stroke-width="1" stroke-linecap="round" fill="none"/>' % (x + gz * pth[0], yo + gz * pth[1], x + gz * 0.5, yo + gz * 0.5, x + gz * pth[2], yo + gz * pth[3], clr)
 
-                if custom != None:
+                if custom is not None:
                     svg += '  ' + custom + '\n'
-                if char != None:
+                if char is not None:
                     svg += '  <text x="%f" y="%f" dominant-baseline="middle" text-anchor="middle" fill="%s" style="fill-opacity:%f">%s</text>\n' % (x + 0.5 * args.gridsize, y - 0.34 * args.gridsize, clr, 1.0, char)
                 svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%f"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, clr, 0.3)
 
@@ -419,7 +419,7 @@ for levelfile in args.levelfiles:
         mode = None
         ext = None
 
-        if anim_name == None:
+        if anim_name is None:
             anim_name = levelfile
         anim_data.append(cairosvg.svg2png(svg, background_color='#ffffff', parent_width=svg_width, parent_height=svg_height, output_width=svg_width*2, output_height=svg_height*2))
     else:
