@@ -378,7 +378,7 @@ for levelfile in args.levelfiles:
 
             print(' - adding lines %s' % style)
 
-            if args.no_avoid:
+            if args.no_avoid is not None:
                 avoid_edges = None
             else:
                 avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in points]
@@ -396,7 +396,7 @@ for levelfile in args.levelfiles:
 
             print(' - adding path %s' % style)
 
-            if args.no_avoid is None:
+            if args.no_avoid is not None:
                 avoid_edges = None
             else:
                 avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in points]
