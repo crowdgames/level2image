@@ -42,6 +42,7 @@ parser.add_argument('--fmt', type=str, choices=FMT_LIST, help='Output format, fr
 parser.add_argument('--stdout', action='store_true', help='Write to stdout instead of file.')
 parser.add_argument('--viz', type=str, nargs=3, action='append', help='How to display a style, from: ' + ','.join(SHAPE_LIST) + ' and ' + ','.join(PATH_LIST) + ' or ' + ','.join(RECT_LIST) + ' or color.')
 parser.add_argument('--no-viz', type=str, action='append', help='Hide a style')
+parser.add_argument('--no-avoid', action='store_true', help='Don\t try to avoid previous edges on path.')
 parser.add_argument('--no-blank', action='store_true', help='Don\t output blank tiles')
 parser.add_argument('--no-background', action='store_true', help='Don\'t use background images if present.')
 parser.add_argument('--padding', type=int, help='Padding around edges.', default=0)
@@ -147,7 +148,7 @@ def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_
     curvey = midy + orthy
 
     as_arc = require_arc
-    if not as_arc and arc_avoid_edges:
+    if not as_arc and arc_avoid_edges is not None:
         for (rj1, cj1, rj2, cj2) in arc_avoid_edges:
             if is_between(r1, c1, rj1, cj1, r2, c2):
                 as_arc = True
@@ -377,7 +378,10 @@ for levelfile in args.levelfiles:
 
             print(' - adding lines %s' % style)
 
-            avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in points]
+            if args.no_avoid:
+                avoid_edges = None
+            else:
+                avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in points]
 
             for ii, (r1, c1, r2, c2) in enumerate(points):
                 svg += svg_line(r1, c1, r2, c2, args.padding, line_color, line_viz == PATH_ARC, avoid_edges, False, False, '-noarrow' not in line_viz, '-dash' in line_viz, '-thick' in line_viz)
@@ -392,7 +396,10 @@ for levelfile in args.levelfiles:
 
             print(' - adding path %s' % style)
 
-            avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in points]
+            if args.no_avoid is None:
+                avoid_edges = None
+            else:
+                avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in points]
 
             for ii, (r1, c1, r2, c2) in enumerate(points):
                 svg += svg_line(r1, c1, r2, c2, args.padding, path_color, path_viz == PATH_ARC, avoid_edges, ii == 0, ii + 1 == len(points), '-noarrow' not in path_viz, '-dash' in path_viz, '-thick' in path_viz)
