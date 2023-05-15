@@ -10,13 +10,15 @@ RECT_LIST         = [RECT_NONE, RECT_FILL, RECT_FILL_UNIQ, RECT_OUTLINE]
 PATH_NONE         = 'none'
 PATH_LINE         = 'line'
 PATH_ARC          = 'arc'
-PATH_LINE_NA      = 'line-noarrow'
-PATH_ARC_NA       = 'arc-noarrow'
+PATH_LINE_POINT   = 'line-point'
+PATH_ARC_POINT    = 'arc-point'
+PATH_LINE_ARROW   = 'line-arrow'
+PATH_ARC_ARROW    = 'arc-arrow'
 PATH_LINE_DASH    = 'line-dash'
 PATH_ARC_DASH     = 'arc-dash'
 PATH_LINE_THICK   = 'line-thick'
 PATH_ARC_THICK    = 'arc-thick'
-PATH_LIST         = [PATH_NONE, PATH_LINE, PATH_ARC, PATH_LINE_NA, PATH_ARC_NA, PATH_LINE_DASH, PATH_ARC_DASH, PATH_LINE_THICK, PATH_ARC_THICK]
+PATH_LIST         = [PATH_NONE, PATH_LINE, PATH_ARC, PATH_LINE_POINT, PATH_ARC_POINT, PATH_LINE_ARROW, PATH_ARC_ARROW, PATH_LINE_DASH, PATH_ARC_DASH, PATH_LINE_THICK, PATH_ARC_THICK]
 
 SHAPE_PATH        = 'path'
 SHAPE_LINE        = 'line'
@@ -98,7 +100,7 @@ def svg_rect(r0, c0, rsz, csz, padding, style, color, drawn):
 
     return '  <rect x="%f" y="%f" width="%f" height="%f" style="%s"/>\n' % (x0, y0, xsz, ysz, style_svg)
 
-def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_circle, to_circle, to_arrow, dash, thick):
+def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_circle, to_circle, to_arrow, to_point, dash, thick):
     x1 = (c1 + 0.5) * args.gridsize + padding
     y1 = (r1 + 0.5) * args.gridsize + padding
     x2 = (c2 + 0.5) * args.gridsize + padding
@@ -161,6 +163,9 @@ def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_
                     as_arc = True
                     break
 
+    if to_point:
+        ret += '  <circle cx="%.2f" cy="%.2f" r="1" fill="%s"%s/>\n' % (x2, y2, color, opts_shape)
+
     if to_arrow:
         if as_arc:
             adjust = distance(x1, y1, x2, y2)
@@ -182,8 +187,8 @@ def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_
 
 draw_viz = {}
 draw_viz['default'] = {}
-draw_viz['default'][SHAPE_PATH] = PATH_LINE
-draw_viz['default'][SHAPE_LINE] = PATH_LINE
+draw_viz['default'][SHAPE_PATH] = PATH_LINE_ARROW
+draw_viz['default'][SHAPE_LINE] = PATH_LINE_ARROW
 draw_viz['default'][SHAPE_RECT] = RECT_OUTLINE
 draw_viz['default'][SHAPE_TILE] = RECT_FILL
 draw_viz['default'][KEY_COLOR] = 'grey'
@@ -384,7 +389,7 @@ for levelfile in args.levelfiles:
                 avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in points]
 
             for ii, (r1, c1, r2, c2) in enumerate(points):
-                svg += svg_line(r1, c1, r2, c2, args.padding, line_color, line_viz == PATH_ARC, avoid_edges, False, False, '-noarrow' not in line_viz, '-dash' in line_viz, '-thick' in line_viz)
+                svg += svg_line(r1, c1, r2, c2, args.padding, line_color, line_viz == PATH_ARC, avoid_edges, False, False, '-arrow' in line_viz, '-point' in line_viz, '-dash' in line_viz, '-thick' in line_viz)
 
     for style, points_list in draw_path.items():
         for points in points_list:
@@ -402,7 +407,7 @@ for levelfile in args.levelfiles:
                 avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in points]
 
             for ii, (r1, c1, r2, c2) in enumerate(points):
-                svg += svg_line(r1, c1, r2, c2, args.padding, path_color, path_viz == PATH_ARC, avoid_edges, ii == 0, ii + 1 == len(points), '-noarrow' not in path_viz, '-dash' in path_viz, '-thick' in path_viz)
+                svg += svg_line(r1, c1, r2, c2, args.padding, path_color, path_viz == PATH_ARC, avoid_edges, ii == 0, ii + 1 == len(points), '-arrow' in path_viz, '-point' in path_viz, '-dash' in path_viz, '-thick' in path_viz)
 
     svg += '</svg>\n'
 
