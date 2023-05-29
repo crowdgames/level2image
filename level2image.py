@@ -49,6 +49,7 @@ parser.add_argument('--no-blank', action='store_true', help='Don\t output blank 
 parser.add_argument('--no-background', action='store_true', help='Don\'t use background images if present.')
 parser.add_argument('--padding', type=int, help='Padding around edges.', default=0)
 parser.add_argument('--anim-delay', type=int, help='Frame delay for animation (in ms).', default=250)
+parser.add_argument('--raster-scale', type=int, help='Amount to scale raster images by.', default=2)
 args = parser.parse_args()
 
 if args.stdout and args.fmt != FMT_SVG:
@@ -422,7 +423,7 @@ for levelfile in args.levelfiles:
         ext = '.pdf'
     elif args.fmt == FMT_PNG:
         import cairosvg
-        data = cairosvg.svg2png(svg, background_color='#ffffff', parent_width=svg_width, parent_height=svg_height, output_width=svg_width*2, output_height=svg_height*2)
+        data = cairosvg.svg2png(svg, background_color='#ffffff', parent_width=svg_width, parent_height=svg_height, output_width=svg_width*args.raster_scale, output_height=svg_height*args.raster_scale)
         mode = 'b'
         ext = '.png'
     elif args.fmt == FMT_GIF_ANIM:
@@ -433,7 +434,7 @@ for levelfile in args.levelfiles:
 
         if anim_name is None:
             anim_name = levelfile
-        anim_data.append(cairosvg.svg2png(svg, background_color='#ffffff', parent_width=svg_width, parent_height=svg_height, output_width=svg_width*2, output_height=svg_height*2))
+        anim_data.append(cairosvg.svg2png(svg, background_color='#ffffff', parent_width=svg_width, parent_height=svg_height, output_width=svg_width*args.raster_scale, output_height=svg_height*args.raster_scale))
     else:
         raise RuntimeError('unknown format for output: %s' % args.fmt)
 
