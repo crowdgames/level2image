@@ -242,7 +242,15 @@ for levelfile in args.levelfiles:
     draw_rect = {}
     draw_tile = {}
 
-    def add_draw_data(draw_dict, line):
+    def add_draw_data(draw_dict, meta):
+        style = meta['group'] if 'group' in meta else 'default'
+        points = meta['points']
+
+        if style not in draw_dict:
+            draw_dict[style] = []
+        draw_dict[style].append(points)
+
+    def add_draw_data_old(draw_dict, line):
         line = line.strip()
         splt = line.split(';')
         if len(splt) == 1:
@@ -268,31 +276,43 @@ for levelfile in args.levelfiles:
         for line in lvl:
             line = line.rstrip('\n')
 
-            if line.startswith('META'):
+            if line.startswith('META DRAW'):
                 TAG = 'META DRAW PATH:'
                 if line.startswith(TAG):
-                    add_draw_data(draw_path, line[len(TAG):])
+                    add_draw_data_old(draw_path, line[len(TAG):])
                     continue
 
                 TAG = 'META DRAW LINE:'
                 if line.startswith(TAG):
-                    add_draw_data(draw_line, line[len(TAG):])
+                    add_draw_data_old(draw_line, line[len(TAG):])
                     continue
 
                 TAG = 'META DRAW RECT:'
                 if line.startswith(TAG):
-                    add_draw_data(draw_rect, line[len(TAG):])
+                    add_draw_data_old(draw_rect, line[len(TAG):])
                     continue
 
                 TAG = 'META DRAW TILE:'
                 if line.startswith(TAG):
-                    add_draw_data(draw_tile, line[len(TAG):])
+                    add_draw_data_old(draw_tile, line[len(TAG):])
                     continue
 
-                if line.startswith('META REM'):
+            elif line.startswith('META REM'):
                     continue
 
-                print(' - WARNING: unrecognized META line: %s' % line)
+            elif line.startswith('META'):
+                meta = json.loads(line[4:])
+                if meta['type'] == 'geom':
+                    if meta['shape'] == 'path':
+                        add_draw_data(draw_path, meta)
+                    elif meta['shape'] == 'line':
+                        add_draw_data(draw_line, meta)
+                    elif meta['shape'] == 'rect':
+                        add_draw_data(draw_rect, meta)
+                    elif meta['shape'] == 'tile':
+                        add_draw_data(draw_tile, meta)
+                    else:
+                        print(' - WARNING: unrecognized META geom: %s' % line)
 
             else:
                 lines.append(line)
