@@ -18,4 +18,4 @@ META {"type": "geom", "shape": "rect", "group": "misc", "points": [[0, 0, 1, 1],
 META {"type": "geom", "shape": "path", "group": "misc", "points": [[2, 23, 4, 25], [4, 25, 4, 25]]}
 META {"type": "geom", "shape": "path", "group": "misc", "points": [[5, 0, 5, 2], [5, 4, 5, 6]]}
 META {"type": "geom", "shape": "line", "group": "misc", "points": [[6, 0, 6, 6]]}
-META {"type": "comment", "comment": "this is a comment"}
+META {"type": "comment", "value": "this is a comment"}
