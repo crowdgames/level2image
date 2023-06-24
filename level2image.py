@@ -244,11 +244,11 @@ for levelfile in args.levelfiles:
 
     def add_draw_data(draw_dict, meta):
         style = meta['group'] if 'group' in meta else 'default'
-        points = meta['points']
+        data = meta['data']
 
         if style not in draw_dict:
             draw_dict[style] = []
-        draw_dict[style].append(points)
+        draw_dict[style].append(data)
 
     def add_draw_data_old(draw_dict, line):
         line = line.strip()
