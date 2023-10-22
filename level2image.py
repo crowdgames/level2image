@@ -39,7 +39,7 @@ parser.add_argument('levelfiles', type=str, nargs='+', help='Input level files.'
 parser.add_argument('--fontsize', type=int, help='Font size.', default=8)
 parser.add_argument('--gridsize', type=int, help='Grid size.', default=11)
 parser.add_argument('--cfgfile', type=str, help='Config file.')
-parser.add_argument('--suffix', type=str, help='Extra suffix to add to output file.', default='out')
+parser.add_argument('--suffix', type=str, help='Extra suffix to add to output file.', default='.out')
 parser.add_argument('--fmt', type=str, choices=FMT_LIST, help='Output format, from: ' + ','.join(FMT_LIST) + '.', default=FMT_PDF)
 parser.add_argument('--stdout', action='store_true', help='Write to stdout instead of file.')
 parser.add_argument('--viz', type=str, nargs=3, action='append', help='How to display a style, from: ' + ','.join(SHAPE_LIST) + ' and ' + ','.join(PATH_LIST) + ' or ' + ','.join(RECT_LIST) + ' or color.')
@@ -463,13 +463,13 @@ for levelfile in args.levelfiles:
             sys.stdout.write(data)
 
         else:
-            outfilename = pathlib.Path(levelfile).with_suffix('.' + args.suffix + ext)
+            outfilename = str(pathlib.Path(levelfile).with_suffix('')) + args.suffix + ext
             print(' - writing', outfilename)
             outfile = open(outfilename, 'w' + mode)
             outfile.write(data)
 
 if args.fmt == FMT_GIF_ANIM:
-    outfilename = pathlib.Path(anim_name).with_suffix('.' + args.suffix + '.anim.gif')
+    outfilename = str(pathlib.Path(anim_name).with_suffix('')) + args.suffix + '.anim.gif'
     print(' - writing', outfilename)
     imgs = [PIL.Image.open(io.BytesIO(data)) for data in anim_data]
 
