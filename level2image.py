@@ -5,7 +5,8 @@ RECT_NONE         = 'none'
 RECT_FILL         = 'fill'
 RECT_FILL_UNIQ    = 'fill-uniq'
 RECT_OUTLINE      = 'outline'
-RECT_LIST         = [RECT_NONE, RECT_FILL, RECT_FILL_UNIQ, RECT_OUTLINE]
+RECT_BORDER       = 'border'
+RECT_LIST         = [RECT_NONE, RECT_FILL, RECT_FILL_UNIQ, RECT_OUTLINE, RECT_BORDER]
 
 PATH_NONE         = 'none'
 PATH_LINE         = 'line'
@@ -70,7 +71,7 @@ def is_between(ra, ca, rb, cb, rc, cc):
         return False
     return abs(distance(ra, ca, rb, cb) + distance(rb, cb, rc, cc) - distance(ra, ca, rc, cc)) < 0.01
 
-def svg_rect(r0, c0, rsz, csz, padding, style, color, drawn):
+def svg_rect(r0, c0, rsz, csz, padding, sides, style, color, drawn):
     if (rsz, csz) == (0, 0):
         print(' - WARNING: skipping zero-size rect: %f %f %f %f' % (r0, c0, rsz, csz))
         return ''
@@ -80,12 +81,17 @@ def svg_rect(r0, c0, rsz, csz, padding, style, color, drawn):
 
     drawn.add((r0, c0, rsz, csz))
 
-    if style == RECT_FILL or style == RECT_FILL_UNIQ:
+    if style in [RECT_FILL, RECT_FILL_UNIQ]:
         style_svg = 'stroke:none;fill:%s;fill-opacity:0.3' % (color)
         inset = 0
-    else:
+    elif style in [RECT_OUTLINE]:
         style_svg = 'stroke:%s;fill:none' % (color)
         inset = 0.5
+    elif style in [RECT_BORDER]:
+        style_svg = 'stroke:%s;fill:none' % (color)
+        inset = 0
+    else:
+        raise RuntimeError('unknown style: %s' % style)
 
     x0 = c0 * args.gridsize + inset + padding
     xsz = csz * args.gridsize - 2 * inset
@@ -99,7 +105,22 @@ def svg_rect(r0, c0, rsz, csz, padding, style, color, drawn):
         y0 = (r0 + 0.5 * (rsz - 0.01)) * args.gridsize + padding
         ysz = 0.01
 
-    return '  <rect x="%f" y="%f" width="%f" height="%f" style="%s"/>\n' % (x0, y0, xsz, ysz, style_svg)
+    if style == RECT_BORDER:
+        top, bottom, left, right = sides
+        ret = ''
+        if top:
+            ret += '  <line x1="%f" y1="%f" x2="%f" y2="%f" style="%s" stroke-linecap="square"/>\n' % (x0, y0, x0 + xsz, y0, style_svg)
+        if bottom:
+            ret += '  <line x1="%f" y1="%f" x2="%f" y2="%f" style="%s" stroke-linecap="square"/>\n' % (x0, y0 + ysz, x0 + xsz, y0 + ysz, style_svg)
+        if left:
+            ret += '  <line x1="%f" y1="%f" x2="%f" y2="%f" style="%s" stroke-linecap="square"/>\n' % (x0, y0, x0, y0 + ysz, style_svg)
+        if right:
+            ret += '  <line x1="%f" y1="%f" x2="%f" y2="%f" style="%s" stroke-linecap="square"/>\n' % (x0 + xsz, y0, x0 + xsz, y0 + ysz, style_svg)
+        return ret
+    else:
+        if sides is not None:
+            raise RuntimeError('can\'t use sides with style: %s' % style)
+        return '  <rect x="%f" y="%f" width="%f" height="%f" style="%s"/>\n' % (x0, y0, xsz, ysz, style_svg)
 
 def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_circle, to_circle, to_arrow, to_point, dash, thick):
     x1 = (c1 + 0.5) * args.gridsize + padding
@@ -378,7 +399,11 @@ for levelfile in args.levelfiles:
 
             drawn = set()
             for rr, cc in points:
-                svg += svg_rect(rr, cc, 1, 1, args.padding, tile_viz, tile_color, drawn)
+                if tile_viz == RECT_BORDER:
+                    sides = ([rr - 1, cc] not in points, [rr + 1, cc] not in points, [rr, cc - 1] not in points, [rr, cc + 1] not in points)
+                else:
+                    sides = None
+                svg += svg_rect(rr, cc, 1, 1, args.padding, sides, tile_viz, tile_color, drawn)
 
     for style, points_list in draw_rect.items():
         for points in points_list:
@@ -392,7 +417,7 @@ for levelfile in args.levelfiles:
 
             drawn = set()
             for r1, c1, r2, c2 in points:
-                svg += svg_rect(r1, c1, r2 - r1, c2 - c1, args.padding, rect_viz, rect_color, drawn)
+                svg += svg_rect(r1, c1, r2 - r1, c2 - c1, args.padding, None, rect_viz, rect_color, drawn)
 
     for style, points_list in draw_line.items():
         for points in points_list:
