@@ -88,7 +88,7 @@ def svg_rect(r0, c0, rsz, csz, padding, sides, style, color, drawn):
         style_svg = 'stroke:%s;fill:none' % (color)
         inset = 0.5
     elif style in [RECT_BORDER]:
-        style_svg = 'stroke:%s;fill:none' % (color)
+        style_svg = 'stroke:%s;stroke-width:1.5;fill:none' % (color)
         inset = 0
     else:
         raise RuntimeError('unknown style: %s' % style)
