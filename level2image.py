@@ -48,6 +48,7 @@ parser.add_argument('--no-viz', type=str, action='append', help='Hide a style')
 parser.add_argument('--no-avoid', action='store_true', help='Don\t try to avoid previous edges on path.')
 parser.add_argument('--no-blank', action='store_true', help='Don\t output blank tiles')
 parser.add_argument('--no-background', action='store_true', help='Don\'t use background images if present.')
+parser.add_argument('--tile-image-folder', type=str, help='Folder to look for tile images in.')
 parser.add_argument('--padding', type=int, help='Padding around edges.', default=0)
 parser.add_argument('--anim-delay', type=int, help='Frame delay for animation (in ms).', default=250)
 parser.add_argument('--raster-scale', type=int, help='Amount to scale raster images by.', default=2)
@@ -365,27 +366,39 @@ for levelfile in args.levelfiles:
 
                 x = chari * args.gridsize + args.padding
                 y = (linei + 1) * args.gridsize - 1 + args.padding
-                clr = cfg['tile'][char] if char in cfg['tile'] else 'grey'
 
-                custom = None
-                if char == '<':
-                    char = '&lt;'
-                elif char == '>':
-                    char = '&gt;'
-                elif char == '&':
-                    char = '&#38;'
-                elif char in '─│┐┘└┌':
-                    pth = {'─': (0.0, 0.5, 1.0, 0.5), '│': (0.5, 0.0, 0.5, 1.0), '┐': (0.5, 1.0, 0.0, 0.5), '┘': (0.0, 0.5, 0.5, 0.0), '└': (0.5, 0.0, 1.0, 0.5), '┌': (1.0, 0.5, 0.5, 1.0)}[char]
-                    gz = args.gridsize
-                    yo = y - gz + 1
-                    char = None
-                    custom = '<path d="M %.2f %.2f L %.2f %.2f L %.2f %.2f" stroke="%s" stroke-width="1" stroke-linecap="round" fill="none"/>' % (x + gz * pth[0], yo + gz * pth[1], x + gz * 0.5, yo + gz * 0.5, x + gz * pth[2], yo + gz * pth[3], clr)
+                tilepngdata = None
+                if args.tile_image_folder is not None:
+                    tilepngname = os.path.join(args.tile_image_folder, char + '.png')
+                    if os.path.exists(tilepngname):
+                        with open(os.path.join(args.tile_image_folder, char + '.png'), 'rb') as pngfile:
+                            tilepngdata = base64.b64encode(pngfile.read()).decode('ascii')
 
-                if custom is not None:
-                    svg += '  ' + custom + '\n'
-                if char is not None:
-                    svg += '  <text x="%f" y="%f" dominant-baseline="middle" text-anchor="middle" fill="%s" style="fill-opacity:%f">%s</text>\n' % (x + 0.5 * args.gridsize, y - 0.34 * args.gridsize, clr, 1.0, char)
-                svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%f"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, clr, 0.3)
+                if tilepngdata is not None:
+                    svg += '  <image x="%d" y="%d" width="%d" height="%d" xlink:href="data:image/png;base64,%s"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, tilepngdata)
+
+                else:
+                    clr = cfg['tile'][char] if char in cfg['tile'] else 'grey'
+
+                    custom = None
+                    if char == '<':
+                        char = '&lt;'
+                    elif char == '>':
+                        char = '&gt;'
+                    elif char == '&':
+                        char = '&#38;'
+                    elif char in '─│┐┘└┌':
+                        pth = {'─': (0.0, 0.5, 1.0, 0.5), '│': (0.5, 0.0, 0.5, 1.0), '┐': (0.5, 1.0, 0.0, 0.5), '┘': (0.0, 0.5, 0.5, 0.0), '└': (0.5, 0.0, 1.0, 0.5), '┌': (1.0, 0.5, 0.5, 1.0)}[char]
+                        gz = args.gridsize
+                        yo = y - gz + 1
+                        char = None
+                        custom = '<path d="M %.2f %.2f L %.2f %.2f L %.2f %.2f" stroke="%s" stroke-width="1" stroke-linecap="round" fill="none"/>' % (x + gz * pth[0], yo + gz * pth[1], x + gz * 0.5, yo + gz * 0.5, x + gz * pth[2], yo + gz * pth[3], clr)
+
+                    if custom is not None:
+                        svg += '  ' + custom + '\n'
+                    if char is not None:
+                        svg += '  <text x="%f" y="%f" dominant-baseline="middle" text-anchor="middle" fill="%s" style="fill-opacity:%f">%s</text>\n' % (x + 0.5 * args.gridsize, y - 0.34 * args.gridsize, clr, 1.0, char)
+                    svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%f"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, clr, 0.3)
 
     for style, points_list in draw_tile.items():
         for points in points_list:
