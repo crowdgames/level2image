@@ -206,6 +206,10 @@ def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_
 
     return ret
 
+def load_image(pngfilename):
+    with open(pngfilename, 'rb') as pngfile:
+        return base64.b64encode(pngfile.read()).decode('ascii')
+
 
 
 draw_viz = {}
@@ -352,8 +356,7 @@ for levelfile in args.levelfiles:
         pngfilename = pathlib.Path(levelfile).with_suffix('.png')
         if os.path.exists(pngfilename):
             print(' - adding png background')
-            with open(pngfilename, 'rb') as pngfile:
-                pngdata = base64.b64encode(pngfile.read()).decode('ascii')
+            pngdata = load_image(pngfilename)
 
     if pngdata:
         svg += '  <image x="0" y="0" width="%d" height="%d" xlink:href="data:image/png;base64,%s"/>\n' % (max_line_len * args.gridsize, len(lines) * args.gridsize, pngdata)
@@ -371,8 +374,7 @@ for levelfile in args.levelfiles:
                 if args.tile_image_folder is not None:
                     tilepngname = os.path.join(args.tile_image_folder, char + '.png')
                     if os.path.exists(tilepngname):
-                        with open(os.path.join(args.tile_image_folder, char + '.png'), 'rb') as pngfile:
-                            tilepngdata = base64.b64encode(pngfile.read()).decode('ascii')
+                        tilepngdata = load_image(tilepngname)
 
                 if tilepngdata is not None:
                     svg += '  <image x="%d" y="%d" width="%d" height="%d" xlink:href="data:image/png;base64,%s"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, tilepngdata)
