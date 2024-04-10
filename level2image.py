@@ -110,18 +110,18 @@ def svg_rect(r0, c0, rsz, csz, padding, sides, style, color, drawn):
         top, bottom, left, right = sides
         ret = ''
         if top:
-            ret += '  <line x1="%f" y1="%f" x2="%f" y2="%f" style="%s" stroke-linecap="square"/>\n' % (x0, y0, x0 + xsz, y0, style_svg)
+            ret += '  <line x1="%.2f" y1="%.2f" x2="%.2f" y2="%.2f" style="%s" stroke-linecap="square"/>\n' % (x0, y0, x0 + xsz, y0, style_svg)
         if bottom:
-            ret += '  <line x1="%f" y1="%f" x2="%f" y2="%f" style="%s" stroke-linecap="square"/>\n' % (x0, y0 + ysz, x0 + xsz, y0 + ysz, style_svg)
+            ret += '  <line x1="%.2f" y1="%.2f" x2="%.2f" y2="%.2f" style="%s" stroke-linecap="square"/>\n' % (x0, y0 + ysz, x0 + xsz, y0 + ysz, style_svg)
         if left:
-            ret += '  <line x1="%f" y1="%f" x2="%f" y2="%f" style="%s" stroke-linecap="square"/>\n' % (x0, y0, x0, y0 + ysz, style_svg)
+            ret += '  <line x1="%.2f" y1="%.2f" x2="%.2f" y2="%.2f" style="%s" stroke-linecap="square"/>\n' % (x0, y0, x0, y0 + ysz, style_svg)
         if right:
-            ret += '  <line x1="%f" y1="%f" x2="%f" y2="%f" style="%s" stroke-linecap="square"/>\n' % (x0 + xsz, y0, x0 + xsz, y0 + ysz, style_svg)
+            ret += '  <line x1="%.2f" y1="%.2f" x2="%.2f" y2="%.2f" style="%s" stroke-linecap="square"/>\n' % (x0 + xsz, y0, x0 + xsz, y0 + ysz, style_svg)
         return ret
     else:
         if sides is not None:
             raise RuntimeError('can\'t use sides with style: %s' % style)
-        return '  <rect x="%f" y="%f" width="%f" height="%f" style="%s"/>\n' % (x0, y0, xsz, ysz, style_svg)
+        return '  <rect x="%.2f" y="%.2f" width="%.2f" height="%.2f" style="%s"/>\n' % (x0, y0, xsz, ysz, style_svg)
 
 def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_circle, to_circle, to_arrow, to_point, dash, thick):
     x1 = (c1 + 0.5) * args.gridsize + padding
@@ -206,9 +206,16 @@ def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_
 
     return ret
 
-def load_image(pngfilename):
-    with open(pngfilename, 'rb') as pngfile:
-        return base64.b64encode(pngfile.read()).decode('ascii')
+def load_image(filename):
+    file_image = PIL.Image.open(filename).convert('RGB')
+    image_data = PIL.Image.new(file_image.mode, file_image.size)
+    image_data.putdata(file_image.getdata())
+    byte_data = io.BytesIO()
+    image_data.save(byte_data, 'png')
+    byte_data.flush()
+    byte_data.seek(0)
+    pngdata = base64.b64encode(byte_data.read()).decode('ascii')
+    return pngdata
 
 
 
@@ -348,7 +355,7 @@ for levelfile in args.levelfiles:
 
     svg_width = max_line_len * args.gridsize + 2 * args.padding
     svg_height = len(lines) * args.gridsize + 2 * args.padding
-    svg += '<svg viewBox="0 0 %f %f" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" font-family="Courier, monospace" font-size="%dpt">\n' % (svg_width, svg_height, args.fontsize)
+    svg += '<svg viewBox="0 0 %f %f" version="1.1" xmlns="http://www.w3.org/2000/svg" font-family="Courier, monospace" font-size="%dpt">\n' % (svg_width, svg_height, args.fontsize)
 
     pngdata = None
 
@@ -359,9 +366,11 @@ for levelfile in args.levelfiles:
             pngdata = load_image(pngfilename)
 
     if pngdata:
-        svg += '  <image x="0" y="0" width="%d" height="%d" xlink:href="data:image/png;base64,%s"/>\n' % (max_line_len * args.gridsize, len(lines) * args.gridsize, pngdata)
+        svg += '  <image x="0" y="0" width="%d" height="%d" href="data:image/png;base64,%s"/>\n' % (max_line_len * args.gridsize, len(lines) * args.gridsize, pngdata)
 
     else:
+        tilepngids = {}
+        tilepngmissing = {}
         for linei, line in enumerate(lines):
             for chari, char in enumerate(line):
                 if args.no_blank and char == ' ':
@@ -370,37 +379,46 @@ for levelfile in args.levelfiles:
                 x = chari * args.gridsize + args.padding
                 y = (linei + 1) * args.gridsize - 1 + args.padding
 
-                tilepngdata = None
-                if args.tile_image_folder is not None:
-                    tilepngname = os.path.join(args.tile_image_folder, char + '.png')
-                    if os.path.exists(tilepngname):
-                        tilepngdata = load_image(tilepngname)
-
-                if tilepngdata is not None:
-                    svg += '  <image x="%d" y="%d" width="%d" height="%d" xlink:href="data:image/png;base64,%s"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, tilepngdata)
+                if char in tilepngids:
+                    pngid, pngx, pngy = tilepngids[char]
+                    svg += '  <use href="#%s" x="%d" y="%d"/>\n' % (pngid, x - pngx, y - args.gridsize + 1 - pngy)
 
                 else:
-                    clr = cfg['tile'][char] if char in cfg['tile'] else 'grey'
+                    tilepngdata = None
+                    if args.tile_image_folder is not None and char not in tilepngmissing:
+                        tilepngname = os.path.join(args.tile_image_folder, char + '.png')
+                        if os.path.exists(tilepngname):
+                            tilepngdata = load_image(tilepngname)
+                        else:
+                            tilepngmissing[char] = None
 
-                    custom = None
-                    if char == '<':
-                        char = '&lt;'
-                    elif char == '>':
-                        char = '&gt;'
-                    elif char == '&':
-                        char = '&#38;'
-                    elif char in '─│┐┘└┌':
-                        pth = {'─': (0.0, 0.5, 1.0, 0.5), '│': (0.5, 0.0, 0.5, 1.0), '┐': (0.5, 1.0, 0.0, 0.5), '┘': (0.0, 0.5, 0.5, 0.0), '└': (0.5, 0.0, 1.0, 0.5), '┌': (1.0, 0.5, 0.5, 1.0)}[char]
-                        gz = args.gridsize
-                        yo = y - gz + 1
-                        char = None
-                        custom = '<path d="M %.2f %.2f L %.2f %.2f L %.2f %.2f" stroke="%s" stroke-width="1" stroke-linecap="round" fill="none"/>' % (x + gz * pth[0], yo + gz * pth[1], x + gz * 0.5, yo + gz * 0.5, x + gz * pth[2], yo + gz * pth[3], clr)
+                    if tilepngdata is not None:
+                        pngid = ('png%d' % len(tilepngids))
+                        tilepngids[char] = (pngid, x, y - args.gridsize + 1)
+                        svg += '  <image x="%d" y="%d" width="%d" height="%d" id="%s" href="data:image/png;base64,%s"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, pngid, tilepngdata)
 
-                    if custom is not None:
-                        svg += '  ' + custom + '\n'
-                    if char is not None:
-                        svg += '  <text x="%f" y="%f" dominant-baseline="middle" text-anchor="middle" fill="%s" style="fill-opacity:%f">%s</text>\n' % (x + 0.5 * args.gridsize, y - 0.34 * args.gridsize, clr, 1.0, char)
-                    svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%f"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, clr, 0.3)
+                    else:
+                        clr = cfg['tile'][char] if char in cfg['tile'] else 'grey'
+
+                        custom = None
+                        if char == '<':
+                            char = '&lt;'
+                        elif char == '>':
+                            char = '&gt;'
+                        elif char == '&':
+                            char = '&#38;'
+                        elif char in '─│┐┘└┌':
+                            pth = {'─': (0.0, 0.5, 1.0, 0.5), '│': (0.5, 0.0, 0.5, 1.0), '┐': (0.5, 1.0, 0.0, 0.5), '┘': (0.0, 0.5, 0.5, 0.0), '└': (0.5, 0.0, 1.0, 0.5), '┌': (1.0, 0.5, 0.5, 1.0)}[char]
+                            gz = args.gridsize
+                            yo = y - gz + 1
+                            char = None
+                            custom = '<path d="M %.2f %.2f L %.2f %.2f L %.2f %.2f" stroke="%s" stroke-width="1" stroke-linecap="round" fill="none"/>' % (x + gz * pth[0], yo + gz * pth[1], x + gz * 0.5, yo + gz * 0.5, x + gz * pth[2], yo + gz * pth[3], clr)
+
+                        if custom is not None:
+                            svg += '  ' + custom + '\n'
+                        if char is not None:
+                            svg += '  <text x="%.2f" y="%.2f" dominant-baseline="middle" text-anchor="middle" fill="%s" style="fill-opacity:%.2f">%s</text>\n' % (x + 0.5 * args.gridsize, y - 0.34 * args.gridsize, clr, 1.0, char)
+                        svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%.2f"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, clr, 0.3)
 
     for style, points_list in draw_tile.items():
         for points in points_list:
