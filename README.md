@@ -15,19 +15,19 @@ On macOS you may need to install brew and run:
 Examples (to be run within pipenv):
 ```
 # ASCII image
-python3 level2image.py example.lvl
+python3 level2image.py example/example.lvl
 
 # ASCII gif
-python3 level2image.py example_frames/*.lvl --fmt=gif-anim
+python3 level2image.py example/example_frames/*.lvl --fmt=gif-anim
 
 # Tileset image
-python3 level2image.py example_with_spriteset.lvl --tile-image-folder=example_sprites
+python3 level2image.py example/example_with_spriteset.lvl --tile-image-folder=example/example_sprites
 
 # Tileset gif
-python3 level2image.py example_frames/*.lvl --fmt=gif-anim --tile-image-folder=example_sprites
+python3 level2image.py example/example_frames/*.lvl --fmt=gif-anim --tile-image-folder=example/example_sprites
 ```
 
-Note for gifs: frames are added in _alphabetical_ order (regardless of the order they appear in your file directory structure), so use prefix 0s in numbered frames. 
+Note for gifs: when using glob wildcards, frames are added in _alphabetical_ order (regardless of the order they appear in your file directory structure), so use prefix 0s in numbered frames.
 
 eg:
 ```
