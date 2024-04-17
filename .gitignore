@@ -1,3 +1,7 @@
+/example/example.out.pdf
+/example/example_with_spriteset.out.pdf
+/example/example_frames/step000.out.anim.gif
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
