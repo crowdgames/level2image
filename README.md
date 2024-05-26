@@ -17,6 +17,12 @@ Examples (to be run within pipenv):
 # ASCII image
 python3 level2image.py example/example.lvl
 
+# ASCII image with no overlay
+python3 level2image.py example/example.lvl --viz-none
+
+# ASCII image with only path overlay
+python3 level2image.py example/example.lvl --viz-none --viz path path line-arrow
+
 # ASCII gif
 python3 level2image.py example/example_frames/*.lvl --fmt=gif-anim
 

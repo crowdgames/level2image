@@ -46,7 +46,8 @@ parser.add_argument('--suffix', type=str, help='Extra suffix to add to output fi
 parser.add_argument('--fmt', type=str, choices=FMT_LIST, help='Output format, from: ' + ','.join(FMT_LIST) + '.', default=FMT_PDF)
 parser.add_argument('--stdout', action='store_true', help='Write to stdout instead of file.')
 parser.add_argument('--viz', type=str, nargs=3, action='append', help='How to display a style, from: ' + ','.join(SHAPE_LIST) + ' and ' + ','.join(PATH_LIST) + ' or ' + ','.join(RECT_LIST) + ' or color.')
-parser.add_argument('--no-viz', type=str, action='append', help='Hide a style')
+parser.add_argument('--viz-hide', type=str, action='append', help='Hide a style')
+parser.add_argument('--viz-none', action='store_true', help='Hide all styles other than those given.')
 parser.add_argument('--no-avoid', action='store_true', help='Don\t try to avoid previous edges on path.')
 parser.add_argument('--no-blank', action='store_true', help='Don\t output blank tiles')
 parser.add_argument('--tile-image-folder', type=str, help='Folder to look for tile images in.')
@@ -230,13 +231,21 @@ def load_image(filename):
 
 
 
+draw_viz_default = {}
+draw_viz_default[SHAPE_PATH] = PATH_LINE_ARROW
+draw_viz_default[SHAPE_LINE] = PATH_LINE_ARROW
+draw_viz_default[SHAPE_RECT] = RECT_OUTLINE
+draw_viz_default[SHAPE_TILE] = RECT_FILL
+draw_viz_default[KEY_COLOR] = None
+
+draw_viz_none = {}
+draw_viz_none[SHAPE_PATH] = PATH_NONE
+draw_viz_none[SHAPE_LINE] = PATH_NONE
+draw_viz_none[SHAPE_RECT] = RECT_NONE
+draw_viz_none[SHAPE_TILE] = RECT_NONE
+draw_viz_none[KEY_COLOR] = None
+
 draw_viz = {}
-draw_viz['default'] = {}
-draw_viz['default'][SHAPE_PATH] = PATH_LINE_ARROW
-draw_viz['default'][SHAPE_LINE] = PATH_LINE_ARROW
-draw_viz['default'][SHAPE_RECT] = RECT_OUTLINE
-draw_viz['default'][SHAPE_TILE] = RECT_FILL
-draw_viz['default'][KEY_COLOR] = 'grey'
 
 if args.viz is not None:
     for style, shape, viz in args.viz:
@@ -249,8 +258,8 @@ if args.viz is not None:
             draw_viz[style] = {}
         draw_viz[style][shape] = viz
 
-if args.no_viz is not None:
-    for style in args.no_viz:
+if args.viz_hide is not None:
+    for style in args.viz_hide:
         draw_viz[style] = {}
         draw_viz[style][SHAPE_PATH] = PATH_NONE
         draw_viz[style][SHAPE_LINE] = PATH_NONE
@@ -260,14 +269,20 @@ if args.no_viz is not None:
 def get_draw_color(style):
     if style in draw_viz and KEY_COLOR in draw_viz[style]:
         return draw_viz[style][KEY_COLOR]
-    return cfg['draw'][style] if style in cfg['draw'] else 'grey'
+    else:
+        if style in cfg['draw']:
+            return cfg['draw'][style]
+        else:
+            return 'grey'
 
 def get_draw_viz(style, shape):
-    if style not in draw_viz:
-        return draw_viz['default'][shape]
-    if shape not in draw_viz[style]:
-        return draw_viz['default'][shape]
-    return draw_viz[style][shape]
+    if style in draw_viz and shape in draw_viz[style]:
+        return draw_viz[style][shape]
+    else:
+        if args.viz_none:
+            return draw_viz_none[shape]
+        else:
+            return draw_viz_default[shape]
 
 
 
@@ -287,7 +302,7 @@ for levelfile, background in zip(args.levelfiles, backgrounds):
     draw_tile = {}
 
     def add_draw_data(draw_dict, meta):
-        style = meta['group'] if 'group' in meta else 'default'
+        style = meta['group'] if 'group' in meta else '_DEFAULT'
         data = meta['data']
 
         if style not in draw_dict:
@@ -298,7 +313,7 @@ for levelfile, background in zip(args.levelfiles, backgrounds):
         line = line.strip()
         splt = line.split(';')
         if len(splt) == 1:
-            style = 'default'
+            style = '_DEFAULT'
             points_str = splt[0].strip()
         elif len(splt) == 2:
             style = splt[0].strip()
