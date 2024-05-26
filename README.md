@@ -14,16 +14,16 @@ On macOS you may need to install brew and run:
 
 Examples (to be run within pipenv):
 ```
-# ASCII image
+# Text image
 python3 level2image.py example/example.lvl
 
-# ASCII image with no overlay
+# Text image with no overlay
 python3 level2image.py example/example.lvl --viz-none
 
-# ASCII image with only path overlay
+# Text image with only path overlay
 python3 level2image.py example/example.lvl --viz-none --viz path path line-arrow
 
-# ASCII gif
+# Text gif
 python3 level2image.py example/example_frames/*.lvl --fmt=gif-anim
 
 # Tileset image

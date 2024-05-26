@@ -27,8 +27,6 @@ SHAPE_TILE        = 'tile'
 SHAPE_RECT        = 'rect'
 SHAPE_LIST        = [SHAPE_PATH, SHAPE_LINE, SHAPE_TILE, SHAPE_RECT]
 
-KEY_COLOR         = 'color'
-
 FMT_SVG           = 'svg'
 FMT_PDF           = 'pdf'
 FMT_PNG           = 'png'
@@ -37,7 +35,7 @@ FMT_LIST          = [FMT_SVG, FMT_PDF, FMT_PNG, FMT_GIF_ANIM]
 
 parser = argparse.ArgumentParser(description='Create svg from level file.')
 parser.add_argument('levelfiles', type=str, nargs='+', help='Input level files.')
-parser.add_argument('--background', type=str, nargs='+', help='Input background files.')
+parser.add_argument('--background', type=str, nargs='+', help='Input background images.')
 parser.add_argument('--no-background', action='store_true', help='Don\'t automatically use background images if present.')
 parser.add_argument('--fontsize', type=int, help='Font size.', default=8)
 parser.add_argument('--gridsize', type=int, help='Grid size.', default=11)
@@ -45,11 +43,12 @@ parser.add_argument('--cfgfile', type=str, help='Config file.')
 parser.add_argument('--suffix', type=str, help='Extra suffix to add to output file.', default='.out')
 parser.add_argument('--fmt', type=str, choices=FMT_LIST, help='Output format, from: ' + ','.join(FMT_LIST) + '.', default=FMT_PDF)
 parser.add_argument('--stdout', action='store_true', help='Write to stdout instead of file.')
-parser.add_argument('--viz', type=str, nargs=3, action='append', help='How to display a style, from: ' + ','.join(SHAPE_LIST) + ' and ' + ','.join(PATH_LIST) + ' or ' + ','.join(RECT_LIST) + ' or color.')
-parser.add_argument('--viz-hide', type=str, action='append', help='Hide a style')
-parser.add_argument('--viz-none', action='store_true', help='Hide all styles other than those given.')
-parser.add_argument('--no-avoid', action='store_true', help='Don\t try to avoid previous edges on path.')
-parser.add_argument('--no-blank', action='store_true', help='Don\t output blank tiles')
+parser.add_argument('--viz', type=str, nargs=3, metavar=('GROUP', 'SHAPE', 'STYLE'), action='append', help='How to display the group GROUP; SHAPE from: ' + ','.join(SHAPE_LIST) + '; STYLE from: ' + ','.join(PATH_LIST) + ' or ' + ','.join(RECT_LIST) + '.')
+parser.add_argument('--viz-color', type=str, nargs=2, metavar=('GROUP', 'COLOR'), action='append', help='Which color to display a group.')
+parser.add_argument('--viz-hide', type=str, metavar='GROUP', action='append', help='Hide a group.')
+parser.add_argument('--viz-none', action='store_true', help='Hide all groups other than those given.')
+parser.add_argument('--no-avoid', action='store_true', help='Don\'t try to avoid previous edges on path.')
+parser.add_argument('--no-blank', action='store_true', help='Don\'t output blank tiles.')
 parser.add_argument('--tile-image-folder', type=str, help='Folder to look for tile images in.')
 parser.add_argument('--padding', type=int, help='Padding around edges.', default=0)
 parser.add_argument('--anim-delay', type=int, help='Frame delay for animation (in ms).', default=250)
@@ -231,58 +230,61 @@ def load_image(filename):
 
 
 
-draw_viz_default = {}
-draw_viz_default[SHAPE_PATH] = PATH_LINE_ARROW
-draw_viz_default[SHAPE_LINE] = PATH_LINE_ARROW
-draw_viz_default[SHAPE_RECT] = RECT_OUTLINE
-draw_viz_default[SHAPE_TILE] = RECT_FILL
-draw_viz_default[KEY_COLOR] = None
+draw_style_default = {}
+draw_style_default[SHAPE_PATH] = PATH_LINE_ARROW
+draw_style_default[SHAPE_LINE] = PATH_LINE_ARROW
+draw_style_default[SHAPE_RECT] = RECT_OUTLINE
+draw_style_default[SHAPE_TILE] = RECT_FILL
 
-draw_viz_none = {}
-draw_viz_none[SHAPE_PATH] = PATH_NONE
-draw_viz_none[SHAPE_LINE] = PATH_NONE
-draw_viz_none[SHAPE_RECT] = RECT_NONE
-draw_viz_none[SHAPE_TILE] = RECT_NONE
-draw_viz_none[KEY_COLOR] = None
+draw_style_none = {}
+draw_style_none[SHAPE_PATH] = PATH_NONE
+draw_style_none[SHAPE_LINE] = PATH_NONE
+draw_style_none[SHAPE_RECT] = RECT_NONE
+draw_style_none[SHAPE_TILE] = RECT_NONE
 
-draw_viz = {}
+draw_style = {}
+draw_color = {}
 
 if args.viz is not None:
-    for style, shape, viz in args.viz:
-        if shape not in SHAPE_LIST + [KEY_COLOR]:
+    for group, shape, style in args.viz:
+        if shape not in SHAPE_LIST:
             raise RuntimeError('unknown shape format: %s' % shape)
-        if (shape in [SHAPE_PATH, SHAPE_LINE] and viz not in PATH_LIST) or (shape in [SHAPE_RECT, SHAPE_TILE] and viz not in RECT_LIST):
-            raise RuntimeError('shape and viz mismatch: %s %s' % (shape, viz))
+        if (shape in [SHAPE_PATH, SHAPE_LINE] and style not in PATH_LIST) or (shape in [SHAPE_RECT, SHAPE_TILE] and style not in RECT_LIST):
+            raise RuntimeError('shape and style mismatch: %s %s' % (shape, style))
 
-        if style not in draw_viz:
-            draw_viz[style] = {}
-        draw_viz[style][shape] = viz
+        if group not in draw_style:
+            draw_style[group] = {}
+        draw_style[group][shape] = style
+
+if args.viz_color is not None:
+    for group, color in args.viz_color:
+        draw_color[group] = color
 
 if args.viz_hide is not None:
-    for style in args.viz_hide:
-        draw_viz[style] = {}
-        draw_viz[style][SHAPE_PATH] = PATH_NONE
-        draw_viz[style][SHAPE_LINE] = PATH_NONE
-        draw_viz[style][SHAPE_RECT] = RECT_NONE
-        draw_viz[style][SHAPE_TILE] = RECT_NONE
+    for group in args.viz_hide:
+        draw_style[group] = {}
+        draw_style[group][SHAPE_PATH] = PATH_NONE
+        draw_style[group][SHAPE_LINE] = PATH_NONE
+        draw_style[group][SHAPE_RECT] = RECT_NONE
+        draw_style[group][SHAPE_TILE] = RECT_NONE
 
-def get_draw_color(style):
-    if style in draw_viz and KEY_COLOR in draw_viz[style]:
-        return draw_viz[style][KEY_COLOR]
+def get_draw_color(group):
+    if group in draw_color:
+        return draw_color[group]
     else:
-        if style in cfg['draw']:
-            return cfg['draw'][style]
+        if group in cfg['draw']:
+            return cfg['draw'][group]
         else:
             return 'grey'
 
-def get_draw_viz(style, shape):
-    if style in draw_viz and shape in draw_viz[style]:
-        return draw_viz[style][shape]
+def get_draw_style(group, shape):
+    if group in draw_style and shape in draw_style[group]:
+        return draw_style[group][shape]
     else:
         if args.viz_none:
-            return draw_viz_none[shape]
+            return draw_style_none[shape]
         else:
-            return draw_viz_default[shape]
+            return draw_style_default[shape]
 
 
 
@@ -302,21 +304,21 @@ for levelfile, background in zip(args.levelfiles, backgrounds):
     draw_tile = {}
 
     def add_draw_data(draw_dict, meta):
-        style = meta['group'] if 'group' in meta else '_DEFAULT'
+        group = meta['group'] if 'group' in meta else '_DEFAULT'
         data = meta['data']
 
-        if style not in draw_dict:
-            draw_dict[style] = []
-        draw_dict[style].append(data)
+        if group not in draw_dict:
+            draw_dict[group] = []
+        draw_dict[group].append(data)
 
     def add_draw_data_old(draw_dict, line):
         line = line.strip()
         splt = line.split(';')
         if len(splt) == 1:
-            style = '_DEFAULT'
+            group = '_DEFAULT'
             points_str = splt[0].strip()
         elif len(splt) == 2:
-            style = splt[0].strip()
+            group = splt[0].strip()
             points_str = splt[1].strip()
         else:
             raise RuntimeError('unknown DRAW format: %s' % line)
@@ -327,9 +329,9 @@ for levelfile, background in zip(args.levelfiles, backgrounds):
         else:
             points = [tuple([float(el) for el in pt.strip().split()]) for pt in points_str.split(',')]
 
-        if style not in draw_dict:
-            draw_dict[style] = []
-        draw_dict[style].append(points)
+        if group not in draw_dict:
+            draw_dict[group] = []
+        draw_dict[group].append(points)
 
     with open(levelfile, 'rt') as lvl:
         for line in lvl:
@@ -446,47 +448,47 @@ for levelfile, background in zip(args.levelfiles, backgrounds):
                             svg += '  <text x="%.2f" y="%.2f" dominant-baseline="middle" text-anchor="middle" fill="%s" style="fill-opacity:%.2f">%s</text>\n' % (x + 0.5 * args.gridsize, y - 0.34 * args.gridsize, clr, 1.0, char)
                         svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%.2f"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, clr, 0.3)
 
-    for style, points_list in draw_tile.items():
+    for group, points_list in draw_tile.items():
         for points in points_list:
-            tile_color = get_draw_color(style)
-            tile_viz = get_draw_viz(style, SHAPE_TILE)
+            tile_color = get_draw_color(group)
+            tile_style = get_draw_style(group, SHAPE_TILE)
 
-            if tile_viz == RECT_NONE:
+            if tile_style == RECT_NONE:
                 continue
 
-            print(' - adding tiles %s' % style)
+            print(' - adding tiles %s' % group)
 
             drawn = set()
             for rr, cc in points:
-                if tile_viz == RECT_BORDER:
+                if tile_style == RECT_BORDER:
                     sides = ([rr - 1, cc] not in points, [rr + 1, cc] not in points, [rr, cc - 1] not in points, [rr, cc + 1] not in points)
                 else:
                     sides = None
-                svg += svg_rect(rr, cc, 1, 1, args.padding, sides, tile_viz, tile_color, drawn)
+                svg += svg_rect(rr, cc, 1, 1, args.padding, sides, tile_style, tile_color, drawn)
 
-    for style, points_list in draw_rect.items():
+    for group, points_list in draw_rect.items():
         for points in points_list:
-            rect_color = get_draw_color(style)
-            rect_viz = get_draw_viz(style, SHAPE_RECT)
+            rect_color = get_draw_color(group)
+            rect_style = get_draw_style(group, SHAPE_RECT)
 
-            if rect_viz == RECT_NONE:
+            if rect_style == RECT_NONE:
                 continue
 
-            print(' - adding rects %s' % style)
+            print(' - adding rects %s' % group)
 
             drawn = set()
             for r1, c1, r2, c2 in points:
-                svg += svg_rect(r1, c1, r2 - r1, c2 - c1, args.padding, None, rect_viz, rect_color, drawn)
+                svg += svg_rect(r1, c1, r2 - r1, c2 - c1, args.padding, None, rect_style, rect_color, drawn)
 
-    for style, points_list in draw_line.items():
+    for group, points_list in draw_line.items():
         for points in points_list:
-            line_color = get_draw_color(style)
-            line_viz = get_draw_viz(style, SHAPE_LINE)
+            line_color = get_draw_color(group)
+            line_style = get_draw_style(group, SHAPE_LINE)
 
-            if line_viz == PATH_NONE:
+            if line_style == PATH_NONE:
                 continue
 
-            print(' - adding lines %s' % style)
+            print(' - adding lines %s' % group)
 
             if args.no_avoid is not None:
                 avoid_edges = None
@@ -494,17 +496,17 @@ for levelfile, background in zip(args.levelfiles, backgrounds):
                 avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in points]
 
             for ii, (r1, c1, r2, c2) in enumerate(points):
-                svg += svg_line(r1, c1, r2, c2, args.padding, line_color, line_viz == PATH_ARC, avoid_edges, False, False, '-arrow' in line_viz, '-point' in line_viz, '-dash' in line_viz, '-thick' in line_viz)
+                svg += svg_line(r1, c1, r2, c2, args.padding, line_color, line_style == PATH_ARC, avoid_edges, False, False, '-arrow' in line_style, '-point' in line_style, '-dash' in line_style, '-thick' in line_style)
 
-    for style, points_list in draw_path.items():
+    for group, points_list in draw_path.items():
         for points in points_list:
-            path_color = get_draw_color(style)
-            path_viz = get_draw_viz(style, SHAPE_PATH)
+            path_color = get_draw_color(group)
+            path_style = get_draw_style(group, SHAPE_PATH)
 
-            if path_viz == PATH_NONE:
+            if path_style == PATH_NONE:
                 continue
 
-            print(' - adding path %s' % style)
+            print(' - adding path %s' % group)
 
             if args.no_avoid is not None:
                 avoid_edges = None
@@ -512,7 +514,7 @@ for levelfile, background in zip(args.levelfiles, backgrounds):
                 avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in points]
 
             for ii, (r1, c1, r2, c2) in enumerate(points):
-                svg += svg_line(r1, c1, r2, c2, args.padding, path_color, path_viz == PATH_ARC, avoid_edges, ii == 0, ii + 1 == len(points), '-arrow' in path_viz, '-point' in path_viz, '-dash' in path_viz, '-thick' in path_viz)
+                svg += svg_line(r1, c1, r2, c2, args.padding, path_color, path_style == PATH_ARC, avoid_edges, ii == 0, ii + 1 == len(points), '-arrow' in path_style, '-point' in path_style, '-dash' in path_style, '-thick' in path_style)
 
     svg += '</svg>\n'
 
