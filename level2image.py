@@ -37,6 +37,8 @@ FMT_LIST          = [FMT_SVG, FMT_PDF, FMT_PNG, FMT_GIF_ANIM]
 
 parser = argparse.ArgumentParser(description='Create svg from level file.')
 parser.add_argument('levelfiles', type=str, nargs='+', help='Input level files.')
+parser.add_argument('--background', type=str, nargs='+', help='Input background files.')
+parser.add_argument('--no-background', action='store_true', help='Don\'t automatically use background images if present.')
 parser.add_argument('--fontsize', type=int, help='Font size.', default=8)
 parser.add_argument('--gridsize', type=int, help='Grid size.', default=11)
 parser.add_argument('--cfgfile', type=str, help='Config file.')
@@ -47,7 +49,6 @@ parser.add_argument('--viz', type=str, nargs=3, action='append', help='How to di
 parser.add_argument('--no-viz', type=str, action='append', help='Hide a style')
 parser.add_argument('--no-avoid', action='store_true', help='Don\t try to avoid previous edges on path.')
 parser.add_argument('--no-blank', action='store_true', help='Don\t output blank tiles')
-parser.add_argument('--no-background', action='store_true', help='Don\'t use background images if present.')
 parser.add_argument('--tile-image-folder', type=str, help='Folder to look for tile images in.')
 parser.add_argument('--padding', type=int, help='Padding around edges.', default=0)
 parser.add_argument('--anim-delay', type=int, help='Frame delay for animation (in ms).', default=250)
@@ -55,7 +56,7 @@ parser.add_argument('--raster-scale', type=int, help='Amount to scale raster ima
 args = parser.parse_args()
 
 if args.stdout and args.fmt != FMT_SVG:
-    raise RuntimeError('can only write svg to stdout.')
+    raise RuntimeError('can only write svg to stdout')
 
 if args.cfgfile is None:
     args.cfgfile = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'cfg-default.json')
@@ -63,6 +64,16 @@ if args.cfgfile is None:
 with open(args.cfgfile, 'rt') as cfgfile:
     cfg = json.load(cfgfile)
 
+if args.background is not None and args.no_background:
+    raise RuntimeError('cannot use both --background and --no-background')
+
+if args.background is not None and len(args.background) != len(args.levelfiles):
+    raise RuntimeError('must have same number of levels and backgrounds')
+
+if args.background is None:
+    backgrounds = [None] * len(args.levelfiles)
+else:
+    backgrounds = args.background
 
 def distance(ra, ca, rb, cb):
     return ((ra - rb)**2 + (ca - cb)**2)**0.5
@@ -264,7 +275,7 @@ anim_name, anim_data = None, None
 if args.fmt == FMT_GIF_ANIM:
     anim_data = []
 
-for levelfile in args.levelfiles:
+for levelfile, background in zip(args.levelfiles, backgrounds):
     print('processing', levelfile)
 
     lines = []
@@ -357,15 +368,15 @@ for levelfile in args.levelfiles:
     svg_height = len(lines) * args.gridsize + 2 * args.padding
     svg += '<svg viewBox="0 0 %f %f" version="1.1" xmlns="http://www.w3.org/2000/svg" font-family="Courier, monospace" font-size="%dpt">\n' % (svg_width, svg_height, args.fontsize)
 
-    pngdata = None
-
-    if not args.no_background:
+    pngfilename = None
+    if background is not None:
+        pngfilename = background
+    elif not args.no_background:
         pngfilename = pathlib.Path(levelfile).with_suffix('.png')
-        if os.path.exists(pngfilename):
-            print(' - adding png background')
-            pngdata = load_image(pngfilename)
 
-    if pngdata:
+    if pngfilename is not None and os.path.exists(pngfilename):
+        print(' - adding png background')
+        pngdata = load_image(pngfilename)
         svg += '  <image x="0" y="0" width="%d" height="%d" href="data:image/png;base64,%s"/>\n' % (max_line_len * args.gridsize, len(lines) * args.gridsize, pngdata)
 
     else:
