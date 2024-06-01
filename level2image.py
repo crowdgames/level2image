@@ -35,8 +35,12 @@ FMT_LIST          = [FMT_SVG, FMT_PDF, FMT_PNG, FMT_GIF_ANIM]
 
 parser = argparse.ArgumentParser(description='Create svg from level file.')
 parser.add_argument('levelfiles', type=str, nargs='+', help='Input level files.')
-parser.add_argument('--background', type=str, nargs='+', help='Input background images.')
-parser.add_argument('--no-background', action='store_true', help='Don\'t automatically use background images if present.')
+
+group = parser.add_mutually_exclusive_group(required=False)
+group.add_argument('--background-files', type=str, nargs='+', help='Input background images.')
+group.add_argument('--background-suffix', type=str, help='Suffix to remove from filenames when looking for backgrounds.')
+group.add_argument('--background-none', action='store_true', help='Don\'t automatically use background images if present.')
+
 parser.add_argument('--fontsize', type=int, help='Font size.', default=8)
 parser.add_argument('--gridsize', type=int, help='Grid size.', default=11)
 parser.add_argument('--cfgfile', type=str, help='Config file.')
@@ -64,16 +68,8 @@ if args.cfgfile is None:
 with open(args.cfgfile, 'rt') as cfgfile:
     cfg = json.load(cfgfile)
 
-if args.background is not None and args.no_background:
-    raise RuntimeError('cannot use both --background and --no-background')
-
-if args.background is not None and len(args.background) != len(args.levelfiles):
+if args.background_files is not None and len(args.background_files) != len(args.levelfiles):
     raise RuntimeError('must have same number of levels and backgrounds')
-
-if args.background is None:
-    backgrounds = [None] * len(args.levelfiles)
-else:
-    backgrounds = args.background
 
 def distance(ra, ca, rb, cb):
     return ((ra - rb)**2 + (ca - cb)**2)**0.5
@@ -292,7 +288,7 @@ anim_name, anim_data = None, None
 if args.fmt == FMT_GIF_ANIM:
     anim_data = []
 
-for levelfile, background in zip(args.levelfiles, backgrounds):
+for li, levelfile in enumerate(args.levelfiles):
     print('processing', levelfile)
 
     lines = []
@@ -386,9 +382,11 @@ for levelfile, background in zip(args.levelfiles, backgrounds):
     svg += '<svg viewBox="0 0 %f %f" version="1.1" xmlns="http://www.w3.org/2000/svg" font-family="Courier, monospace" font-size="%dpt">\n' % (svg_width, svg_height, args.fontsize)
 
     pngfilename = None
-    if background is not None:
-        pngfilename = background
-    elif not args.no_background:
+    if args.background_files is not None:
+        pngfilename = args.background_files[li]
+    elif args.background_suffix is not None:
+        pngfilename = levelfile.removesuffix(args.background_suffix) + '.png'
+    elif not args.background_none:
         pngfilename = pathlib.Path(levelfile).with_suffix('.png')
 
     if pngfilename is not None and os.path.exists(pngfilename):
