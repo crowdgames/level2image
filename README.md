@@ -1,6 +1,6 @@
 # level2image
 
-A utility for converting text level files to various image formats.
+A utility for converting text level files to various image formats, with support for drawing overlays.
 
 
 ## Installation and setup
