@@ -57,6 +57,11 @@ parser.add_argument('--tile-image-folder', type=str, help='Folder to look for ti
 parser.add_argument('--padding', type=int, help='Padding around edges.', default=0)
 parser.add_argument('--anim-delay', type=int, help='Frame delay for animation (in ms).', default=250)
 parser.add_argument('--raster-scale', type=int, help='Amount to scale raster images by.', default=2)
+
+group = parser.add_mutually_exclusive_group(required=False)
+group.add_argument('--cairosvg', action='store_true', help='Only try to use cairosvg converter.')
+group.add_argument('--svglib', action='store_true', help='Only try to use svglib converter.')
+
 args = parser.parse_args()
 
 if args.stdout and args.fmt != FMT_SVG:
@@ -70,6 +75,8 @@ with open(args.cfgfile, 'rt') as cfgfile:
 
 if args.background_files is not None and len(args.background_files) != len(args.levelfiles):
     raise RuntimeError('must have same number of levels and backgrounds')
+
+
 
 def distance(ra, ca, rb, cb):
     return ((ra - rb)**2 + (ca - cb)**2)**0.5
@@ -226,6 +233,91 @@ def load_image(filename):
 
 
 
+def initialize_cairosvg():
+    try:
+        import cairosvg
+
+        def _svg2pdf(svg):
+            return cairosvg.svg2pdf(svg)
+
+        def _svg2png(svg, svg_width, svg_height, svg_scale):
+            return cairosvg.svg2png(svg, background_color='#ffffff', parent_width=svg_width, parent_height=svg_height, output_width=svg_width*svg_scale, output_height=svg_height*svg_scale)
+
+        return _svg2pdf, _svg2png
+
+    except ImportError:
+        return None
+
+def initialize_svglib():
+    try:
+        import svglib.svglib
+        import reportlab.graphics.renderPDF
+        import reportlab.graphics.renderPM
+
+        def _adjustNode(node, forPng):
+            if forPng:
+                if hasattr(node, 'strokeWidth'):
+                    node.strokeWidth *= 2
+                if hasattr(node, 'fontName'):
+                    node.fontName = 'Courier-Bold'
+
+            if hasattr(node, 'text'):
+                node.fontSize += 0.5
+                node.y -= (node.fontSize * 0.25)
+
+            if hasattr(node, 'getContents'):
+                for child in node.getContents():
+                    _adjustNode(child, forPng)
+
+        def _svg2rlg(svg, forPng=False):
+            drawing = svglib.svglib.svg2rlg(io.StringIO(svg))
+            for content in drawing.contents:
+                _adjustNode(content, forPng)
+            return drawing
+
+        def _svg2pdf(svg):
+            return reportlab.graphics.renderPDF.drawToString(_svg2rlg(svg, False))
+
+        def _svg2png(svg, svg_width, svg_height, svg_scale):
+            return reportlab.graphics.renderPM.drawToString(_svg2rlg(svg, True), fmt='PNG', dpi=72 * svg_scale, backend='_renderPM')
+
+        return _svg2pdf, _svg2png
+
+    except ImportError:
+        return None
+
+def initialize_unsupported():
+    def _svg2pdf(svg):
+        print('Unsupported conversion to pdf. Try installing packages for cairosvg or svglib.')
+        sys.exit(-1)
+
+    def _svg2png(svg, svg_width, svg_height, svg_scale):
+        print('Unsupported conversion to image. Try installing packages for cairosvg or svglib.')
+        sys.exit(-1)
+
+    return _svg2pdf, _svg2png
+
+
+svg2pdf, svg2png = None, None
+
+initializers = [(initialize_cairosvg, 'cairosvg', not args.svglib),
+                (initialize_svglib, 'svglib', not args.cairosvg),
+                (initialize_unsupported, 'unsupported', not (args.svglib or args.cairosvg))]
+
+for initializer, name, attempt in initializers:
+    if attempt:
+        result = initializer()
+        if result is not None:
+            svg2pdf, svg2png = result
+            print('using converter', name)
+            break
+
+if svg2pdf is None or svg2png is None:
+    print('no converter found')
+    sys.exit(-1)
+
+
+
 draw_style_default = {}
 draw_style_default[SHAPE_PATH] = PATH_LINE_ARROW
 draw_style_default[SHAPE_LINE] = PATH_LINE_ARROW
@@ -379,7 +471,7 @@ for li, levelfile in enumerate(args.levelfiles):
 
     svg_width = max_line_len * args.gridsize + 2 * args.padding
     svg_height = len(lines) * args.gridsize + 2 * args.padding
-    svg += '<svg viewBox="0 0 %f %f" version="1.1" xmlns="http://www.w3.org/2000/svg" font-family="Courier, monospace" font-size="%dpt">\n' % (svg_width, svg_height, args.fontsize)
+    svg += '<svg viewBox="0 0 %f %f" version="1.1" xmlns="http://www.w3.org/2000/svg" font-family="Courier, monospace" font-size="%fpt">\n' % (svg_width, svg_height, args.fontsize)
 
     pngfilename = None
     if args.background_files is not None:
@@ -521,24 +613,21 @@ for li, levelfile in enumerate(args.levelfiles):
         mode = 't'
         ext = '.svg'
     elif args.fmt == FMT_PDF:
-        import cairosvg
-        data = cairosvg.svg2pdf(svg)
+        data = svg2pdf(svg)
         mode = 'b'
         ext = '.pdf'
     elif args.fmt == FMT_PNG:
-        import cairosvg
-        data = cairosvg.svg2png(svg, background_color='#ffffff', parent_width=svg_width, parent_height=svg_height, output_width=svg_width*args.raster_scale, output_height=svg_height*args.raster_scale)
+        data = svg2png(svg, svg_width, svg_height, args.raster_scale)
         mode = 'b'
         ext = '.png'
     elif args.fmt == FMT_GIF_ANIM:
-        import cairosvg
         data = None
         mode = None
         ext = None
 
         if anim_name is None:
             anim_name = levelfile
-        anim_data.append(cairosvg.svg2png(svg, background_color='#ffffff', parent_width=svg_width, parent_height=svg_height, output_width=svg_width*args.raster_scale, output_height=svg_height*args.raster_scale))
+        anim_data.append(svg2png(svg, svg_width, svg_height, args.raster_scale))
     else:
         raise RuntimeError('unknown format for output: %s' % args.fmt)
 
