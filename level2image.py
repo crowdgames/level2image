@@ -254,10 +254,10 @@ def initialize_svglib():
         import reportlab.graphics.renderPDF
         import reportlab.graphics.renderPM
 
-        def _adjustNode(node, forPng):
-            if forPng:
+        def _adjustNode(node, raster_scale):
+            if raster_scale is not None:
                 if hasattr(node, 'strokeWidth'):
-                    node.strokeWidth *= 2
+                    node.strokeWidth *= raster_scale
                 if hasattr(node, 'fontName'):
                     node.fontName = 'Courier-Bold'
 
@@ -267,19 +267,19 @@ def initialize_svglib():
 
             if hasattr(node, 'getContents'):
                 for child in node.getContents():
-                    _adjustNode(child, forPng)
+                    _adjustNode(child, raster_scale)
 
-        def _svg2rlg(svg, forPng=False):
+        def _svg2rlg(svg, raster_scale):
             drawing = svglib.svglib.svg2rlg(io.StringIO(svg))
             for content in drawing.contents:
-                _adjustNode(content, forPng)
+                _adjustNode(content, raster_scale)
             return drawing
 
         def _svg2pdf(svg):
-            return reportlab.graphics.renderPDF.drawToString(_svg2rlg(svg, False))
+            return reportlab.graphics.renderPDF.drawToString(_svg2rlg(svg, None))
 
         def _svg2png(svg, svg_width, svg_height, svg_scale):
-            return reportlab.graphics.renderPM.drawToString(_svg2rlg(svg, True), fmt='PNG', dpi=72 * svg_scale, backend='_renderPM')
+            return reportlab.graphics.renderPM.drawToString(_svg2rlg(svg, svg_scale), fmt='PNG', dpi=72 * svg_scale, backend='_renderPM')
 
         return _svg2pdf, _svg2png
 
