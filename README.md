@@ -56,7 +56,7 @@ pipenv install
 
 ## Examples
 
-These examples can be in a `pipenv shell`:
+These examples can be run in a `pipenv shell`:
 
 ```
 # Text pdf

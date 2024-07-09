@@ -221,7 +221,7 @@ def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_
     return ret
 
 def load_image(filename):
-    file_image = PIL.Image.open(filename).convert('RGB')
+    file_image = PIL.Image.open(filename).convert('RGBA')
     image_data = PIL.Image.new(file_image.mode, file_image.size)
     image_data.putdata(file_image.getdata())
     byte_data = io.BytesIO()
