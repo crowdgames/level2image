@@ -10,8 +10,10 @@ python_version = "3.12"
 Pillow = "*"
 
 [svglib]
+Pillow = "*"
 reportlab = {version="*", extras=["renderpm"]}
 svglib = "*"
 
 [cairosvg]
+Pillow = "*"
 cairosvg = "*"

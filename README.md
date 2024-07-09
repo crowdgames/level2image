@@ -42,6 +42,11 @@ To use cairosvg, you may need to install the Cairo libraries specific to your pl
 brew install cairo
 ```
 
+If you want both converters, you can run:
+```
+pipenv install --categories "cairosvg svglib"
+```
+
 If you only want to produce svgs, you don't need to install a converer, and can just run:
 
 ```
