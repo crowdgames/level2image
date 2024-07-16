@@ -41,8 +41,8 @@ group.add_argument('--background-files', type=str, nargs='+', help='Input backgr
 group.add_argument('--background-suffix', type=str, help='Suffix to remove from filenames when looking for backgrounds.')
 group.add_argument('--background-none', action='store_true', help='Don\'t automatically use background images if present.')
 
-parser.add_argument('--fontsize', type=int, help='Font size.', default=8)
-parser.add_argument('--gridsize', type=int, help='Grid size.', default=11)
+parser.add_argument('--size-font', type=int, help='Font size.', default=8)
+parser.add_argument('--size-cell', type=int, help='cell size.', default=11)
 parser.add_argument('--cfgfile', type=str, help='Config file.')
 parser.add_argument('--suffix', type=str, help='Extra suffix to add to output file.', default='.out')
 parser.add_argument('--fmt', type=str, choices=FMT_LIST, help='Output format, from: ' + ','.join(FMT_LIST) + '.', default=FMT_PDF)
@@ -108,16 +108,16 @@ def svg_rect(r0, c0, rsz, csz, padding, sides, style, color, drawn):
     else:
         raise RuntimeError('unknown style: %s' % style)
 
-    x0 = c0 * args.gridsize + inset + padding
-    xsz = csz * args.gridsize - 2 * inset
+    x0 = c0 * args.size_cell + inset + padding
+    xsz = csz * args.size_cell - 2 * inset
     if xsz <= 0:
-        x0 = (c0 + 0.5 * (csz - 0.01)) * args.gridsize + padding
+        x0 = (c0 + 0.5 * (csz - 0.01)) * args.size_cell + padding
         xsz = 0.01
 
-    y0 = r0 * args.gridsize + inset + padding
-    ysz = rsz * args.gridsize - 2 * inset
+    y0 = r0 * args.size_cell + inset + padding
+    ysz = rsz * args.size_cell - 2 * inset
     if ysz <= 0:
-        y0 = (r0 + 0.5 * (rsz - 0.01)) * args.gridsize + padding
+        y0 = (r0 + 0.5 * (rsz - 0.01)) * args.size_cell + padding
         ysz = 0.01
 
     if style == RECT_BORDER:
@@ -138,10 +138,10 @@ def svg_rect(r0, c0, rsz, csz, padding, sides, style, color, drawn):
         return '  <rect x="%.2f" y="%.2f" width="%.2f" height="%.2f" style="%s"/>\n' % (x0, y0, xsz, ysz, style_svg)
 
 def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_circle, to_circle, to_arrow, to_point, dash, thick):
-    x1 = (c1 + 0.5) * args.gridsize + padding
-    y1 = (r1 + 0.5) * args.gridsize + padding
-    x2 = (c2 + 0.5) * args.gridsize + padding
-    y2 = (r2 + 0.5) * args.gridsize + padding
+    x1 = (c1 + 0.5) * args.size_cell + padding
+    y1 = (r1 + 0.5) * args.size_cell + padding
+    x2 = (c2 + 0.5) * args.size_cell + padding
+    y2 = (r2 + 0.5) * args.size_cell + padding
 
     opts_shape = ''
     if thick:
@@ -175,7 +175,7 @@ def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_
     else:
         orthx = (y1 - y2) / 4
         orthy = (x2 - x1) / 4
-    orthmax = 0.75 * args.gridsize
+    orthmax = 0.75 * args.size_cell
     orthlen = distance(0, 0, orthx, orthy)
 
     orthx = orthx / orthlen * orthmax
@@ -222,14 +222,20 @@ def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_
 
 def load_image(filename):
     file_image = PIL.Image.open(filename).convert('RGBA')
-    image_data = PIL.Image.new(file_image.mode, file_image.size)
-    image_data.putdata(file_image.getdata())
+    fresh_image = PIL.Image.new(file_image.mode, file_image.size)
+    fresh_image.putdata(file_image.getdata())
+    return fresh_image
+
+def b64_image(image):
     byte_data = io.BytesIO()
-    image_data.save(byte_data, 'png')
+    image.save(byte_data, 'png')
     byte_data.flush()
     byte_data.seek(0)
-    pngdata = base64.b64encode(byte_data.read()).decode('ascii')
-    return pngdata
+    b64_data = base64.b64encode(byte_data.read()).decode('ascii')
+    return b64_data
+
+def load_b64_image(filename):
+    return b64_image(load_image(filename))
 
 
 
@@ -469,9 +475,11 @@ for li, levelfile in enumerate(args.levelfiles):
 
     svg = ''
 
-    svg_width = max_line_len * args.gridsize + 2 * args.padding
-    svg_height = len(lines) * args.gridsize + 2 * args.padding
-    svg += '<svg viewBox="0 0 %f %f" version="1.1" xmlns="http://www.w3.org/2000/svg" font-family="Courier, monospace" font-size="%fpt">\n' % (svg_width, svg_height, args.fontsize)
+    content_width = max_line_len * args.size_cell
+    content_height = len(lines) * args.size_cell
+    svg_width = content_width + 2 * args.padding
+    svg_height = content_height + 2 * args.padding
+    svg += '<svg viewBox="0 0 %f %f" version="1.1" xmlns="http://www.w3.org/2000/svg" font-family="Courier, monospace" font-size="%fpt">\n' % (svg_width, svg_height, args.size_font)
 
     pngfilename = None
     if args.background_files is not None:
@@ -481,62 +489,66 @@ for li, levelfile in enumerate(args.levelfiles):
     elif not args.background_none:
         pngfilename = pathlib.Path(levelfile).with_suffix('.png')
 
+    tile_image = None
+
     if pngfilename is not None and os.path.exists(pngfilename):
         print(' - adding png background')
-        pngdata = load_image(pngfilename)
-        svg += '  <image x="0" y="0" width="%d" height="%d" href="data:image/png;base64,%s"/>\n' % (max_line_len * args.gridsize, len(lines) * args.gridsize, pngdata)
+        pngdata = load_b64_image(pngfilename)
+        svg += '  <image x="%d" y="%d" width="%d" height="%d" href="data:image/png;base64,%s"/>\n' % (args.padding, args.padding, content_width, content_height, pngdata)
 
     else:
-        tilepngids = {}
-        tilepngmissing = {}
+        if args.tile_image_folder is not None:
+            tile_image = PIL.Image.new('RGBA', (content_width, content_height), (0, 0, 0, 0))
+
+        tilepng = {}
+
         for linei, line in enumerate(lines):
             for chari, char in enumerate(line):
                 if args.no_blank and char == ' ':
                     continue
 
-                x = chari * args.gridsize + args.padding
-                y = (linei + 1) * args.gridsize - 1 + args.padding
+                x = chari * args.size_cell + args.padding
+                y = (linei + 1) * args.size_cell - 1 + args.padding
 
-                if char in tilepngids:
-                    pngid, pngx, pngy = tilepngids[char]
-                    svg += '  <use href="#%s" x="%d" y="%d"/>\n' % (pngid, x - pngx, y - args.gridsize + 1 - pngy)
+                if args.tile_image_folder is not None and char not in tilepng:
+                    tilepngname = os.path.join(args.tile_image_folder, char + '.png')
+                    if os.path.exists(tilepngname):
+                        image = load_image(tilepngname)
+                        if image.size != (args.size_cell, args.size_cell):
+                            image = image.resize((args.size_cell, args.size_cell))
+                        tilepng[char] = image
+                    else:
+                        tilepng[char] = None
+
+                if char in tilepng and tilepng[char] is not None:
+                    tile_image.paste(tilepng[char], (x - args.padding, y + 1 - args.size_cell - args.padding))
 
                 else:
-                    tilepngdata = None
-                    if args.tile_image_folder is not None and char not in tilepngmissing:
-                        tilepngname = os.path.join(args.tile_image_folder, char + '.png')
-                        if os.path.exists(tilepngname):
-                            tilepngdata = load_image(tilepngname)
-                        else:
-                            tilepngmissing[char] = None
+                    clr = cfg['tile'][char] if char in cfg['tile'] else 'grey'
 
-                    if tilepngdata is not None:
-                        pngid = ('png%d' % len(tilepngids))
-                        tilepngids[char] = (pngid, x, y - args.gridsize + 1)
-                        svg += '  <image x="%d" y="%d" width="%d" height="%d" id="%s" href="data:image/png;base64,%s"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, pngid, tilepngdata)
+                    custom = None
+                    if char == '<':
+                        char = '&lt;'
+                    elif char == '>':
+                        char = '&gt;'
+                    elif char == '&':
+                        char = '&#38;'
+                    elif char in '─│┐┘└┌':
+                        pth = {'─': (0.0, 0.5, 1.0, 0.5), '│': (0.5, 0.0, 0.5, 1.0), '┐': (0.5, 1.0, 0.0, 0.5), '┘': (0.0, 0.5, 0.5, 0.0), '└': (0.5, 0.0, 1.0, 0.5), '┌': (1.0, 0.5, 0.5, 1.0)}[char]
+                        gz = args.size_cell
+                        yo = y - gz + 1
+                        char = None
+                        custom = '<path d="M %.2f %.2f L %.2f %.2f L %.2f %.2f" stroke="%s" stroke-width="1" stroke-linecap="round" fill="none"/>' % (x + gz * pth[0], yo + gz * pth[1], x + gz * 0.5, yo + gz * 0.5, x + gz * pth[2], yo + gz * pth[3], clr)
 
-                    else:
-                        clr = cfg['tile'][char] if char in cfg['tile'] else 'grey'
+                    if custom is not None:
+                        svg += '  ' + custom + '\n'
+                    if char is not None:
+                        svg += '  <text x="%.2f" y="%.2f" dominant-baseline="middle" text-anchor="middle" fill="%s" style="fill-opacity:%.2f">%s</text>\n' % (x + 0.5 * args.size_cell, y - 0.34 * args.size_cell, clr, 1.0, char)
+                    svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%.2f"/>\n' % (x, y - args.size_cell + 1, args.size_cell, args.size_cell, clr, 0.3)
 
-                        custom = None
-                        if char == '<':
-                            char = '&lt;'
-                        elif char == '>':
-                            char = '&gt;'
-                        elif char == '&':
-                            char = '&#38;'
-                        elif char in '─│┐┘└┌':
-                            pth = {'─': (0.0, 0.5, 1.0, 0.5), '│': (0.5, 0.0, 0.5, 1.0), '┐': (0.5, 1.0, 0.0, 0.5), '┘': (0.0, 0.5, 0.5, 0.0), '└': (0.5, 0.0, 1.0, 0.5), '┌': (1.0, 0.5, 0.5, 1.0)}[char]
-                            gz = args.gridsize
-                            yo = y - gz + 1
-                            char = None
-                            custom = '<path d="M %.2f %.2f L %.2f %.2f L %.2f %.2f" stroke="%s" stroke-width="1" stroke-linecap="round" fill="none"/>' % (x + gz * pth[0], yo + gz * pth[1], x + gz * 0.5, yo + gz * 0.5, x + gz * pth[2], yo + gz * pth[3], clr)
-
-                        if custom is not None:
-                            svg += '  ' + custom + '\n'
-                        if char is not None:
-                            svg += '  <text x="%.2f" y="%.2f" dominant-baseline="middle" text-anchor="middle" fill="%s" style="fill-opacity:%.2f">%s</text>\n' % (x + 0.5 * args.gridsize, y - 0.34 * args.gridsize, clr, 1.0, char)
-                        svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%.2f"/>\n' % (x, y - args.gridsize + 1, args.gridsize, args.gridsize, clr, 0.3)
+    if tile_image is not None:
+        pngdata = b64_image(tile_image)
+        svg += '  <image x="%d" y="%d" width="%d" height="%d" href="data:image/png;base64,%s"/>\n' % (args.padding, args.padding, content_width, content_height, pngdata)
 
     for group, points_list in draw_tile.items():
         for points in points_list:
