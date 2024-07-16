@@ -479,7 +479,7 @@ for li, levelfile in enumerate(args.levelfiles):
     content_height = len(lines) * args.size_cell
     svg_width = content_width + 2 * args.padding
     svg_height = content_height + 2 * args.padding
-    svg += '<svg viewBox="0 0 %f %f" version="1.1" xmlns="http://www.w3.org/2000/svg" font-family="Courier, monospace" font-size="%fpt">\n' % (svg_width, svg_height, args.size_font)
+    svg += '<svg viewBox="0 0 %d %d" version="1.1" xmlns="http://www.w3.org/2000/svg" font-family="Courier, monospace" font-size="%.2fpt">\n' % (svg_width, svg_height, args.size_font)
 
     pngfilename = None
     if args.background_files is not None:

@@ -71,6 +71,9 @@ python level2image.py example/example.lvl --viz-none
 # Text pdf with only path overlay
 python level2image.py example/example.lvl --viz-none --viz path path line-arrow
 
+# Tileset png
+python level2image.py example/example_frames/step000.lvl --fmt=png --tile-image-folder=example/example_sprites --size-cell 64 --raster-scale 1
+
 # Text gif
 python level2image.py example/example_frames/*.lvl --fmt=gif-anim
 
@@ -78,7 +81,7 @@ python level2image.py example/example_frames/*.lvl --fmt=gif-anim
 python level2image.py example/example_with_spriteset.lvl --tile-image-folder=example/example_sprites
 
 # Tileset gif
-python level2image.py example/example_frames/*.lvl --fmt=gif-anim --tile-image-folder=example/example_sprites
+python level2image.py example/example_frames/*.lvl --fmt=gif-anim --tile-image-folder=example/example_sprites --size-cell 32 --raster-scale 1
 ```
 
 Note for gifs: when using glob wildcards, frames are added in _alphabetical_ order (regardless of the order they appear in your file directory structure), so use prefix 0s in numbered frames.
