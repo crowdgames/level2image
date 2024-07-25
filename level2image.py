@@ -608,6 +608,18 @@ for li, levelfile in enumerate(args.levelfiles):
             if path_style == PATH_NONE:
                 continue
 
+            expanded_points = []
+            prev_point = None
+            for point in points:
+                if len(point) == 2:
+                    if prev_point is not None:
+                        expanded_points.append([prev_point[0], prev_point[1], point[0], point[1]])
+                    prev_point = point
+                else:
+                    expanded_points.append(point)
+                    prev_point = [point[-2], point[-1]]
+            points = expanded_points
+
             print(' - adding path %s' % group)
 
             if args.no_avoid is not None:
