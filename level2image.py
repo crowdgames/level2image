@@ -33,7 +33,35 @@ FMT_PNG           = 'png'
 FMT_GIF_ANIM      = 'gif-anim'
 FMT_LIST          = [FMT_SVG, FMT_PDF, FMT_PNG, FMT_GIF_ANIM]
 
-parser = argparse.ArgumentParser(description='Create svg from level file.')
+class GroupShapeStyleAction(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        super().__init__(option_strings, dest, nargs, **kwargs)
+        if nargs != '+':
+            raise ValueError('nargs can only be +')
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if len(values) > 3:
+            parser.error('argument %s: expected at most three arguments' % option_string)
+
+        while len(values) < 3:
+            values.append(None)
+
+        values_list = getattr(namespace, self.dest, None)
+
+        if values_list is None:
+            values_list = []
+            setattr(namespace, self.dest, values_list)
+
+        values_list.append(values)
+
+class CustomHelpFormatter(argparse.HelpFormatter):
+    def _format_args(self, action, default_metavar):
+        if isinstance(action, GroupShapeStyleAction):
+            return 'GROUP [SHAPE [STYLE]]'
+        else:
+            return super()._format_args(action, default_metavar)
+
+parser = argparse.ArgumentParser(description='Create image from level file.', formatter_class=CustomHelpFormatter)
 parser.add_argument('levelfiles', type=str, nargs='+', help='Input level files.')
 
 group = parser.add_mutually_exclusive_group(required=False)
@@ -47,10 +75,10 @@ parser.add_argument('--cfgfile', type=str, help='Config file.')
 parser.add_argument('--suffix', type=str, help='Extra suffix to add to output file.', default='.out')
 parser.add_argument('--fmt', type=str, choices=FMT_LIST, help='Output format, from: ' + ','.join(FMT_LIST) + '.', default=FMT_PDF)
 parser.add_argument('--stdout', action='store_true', help='Write to stdout instead of file.')
-parser.add_argument('--viz', type=str, nargs=3, metavar=('GROUP', 'SHAPE', 'STYLE'), action='append', help='How to display the group GROUP; SHAPE from: ' + ','.join(SHAPE_LIST) + '; STYLE from: ' + ','.join(PATH_LIST) + ' or ' + ','.join(RECT_LIST) + '.')
-parser.add_argument('--viz-color', type=str, nargs=2, metavar=('GROUP', 'COLOR'), action='append', help='Which color to display a group.')
+parser.add_argument('--viz', type=str, nargs='+', action=GroupShapeStyleAction, help='How to display the group GROUP; SHAPE from: ' + ','.join(SHAPE_LIST) + '; STYLE from: ' + ','.join(PATH_LIST) + ' or ' + ','.join(RECT_LIST) + '.')
 parser.add_argument('--viz-hide', type=str, metavar='GROUP', action='append', help='Hide a group.')
-parser.add_argument('--viz-none', action='store_true', help='Hide all groups other than those given.')
+parser.add_argument('--viz-none', action='store_true', help='Hide all groups other than those displayed.')
+parser.add_argument('--viz-color', type=str, nargs=2, metavar=('GROUP', 'COLOR'), action='append', help='Which color to display a group.')
 parser.add_argument('--no-avoid', action='store_true', help='Don\'t try to avoid previous edges on path.')
 parser.add_argument('--no-blank', action='store_true', help='Don\'t output blank tiles.')
 parser.add_argument('--tile-image-folder', type=str, help='Folder to look for tile images in.')
@@ -323,36 +351,22 @@ if svg2pdf is None or svg2png is None:
     sys.exit(-1)
 
 
-
-draw_style_default = {}
-draw_style_default[SHAPE_PATH] = PATH_LINE_ARROW
-draw_style_default[SHAPE_LINE] = PATH_LINE_ARROW
-draw_style_default[SHAPE_RECT] = RECT_OUTLINE
-draw_style_default[SHAPE_TILE] = RECT_FILL
-
-draw_style_none = {}
-draw_style_none[SHAPE_PATH] = PATH_NONE
-draw_style_none[SHAPE_LINE] = PATH_NONE
-draw_style_none[SHAPE_RECT] = RECT_NONE
-draw_style_none[SHAPE_TILE] = RECT_NONE
+DRAW_STYLE_DEFAULT = {}
+DRAW_STYLE_DEFAULT[SHAPE_PATH] = PATH_LINE_ARROW
+DRAW_STYLE_DEFAULT[SHAPE_LINE] = PATH_LINE_ARROW
+DRAW_STYLE_DEFAULT[SHAPE_RECT] = RECT_OUTLINE
+DRAW_STYLE_DEFAULT[SHAPE_TILE] = RECT_FILL
 
 draw_style = {}
-draw_color = {}
+draw_style[None] = dict(DRAW_STYLE_DEFAULT)
 
-if args.viz is not None:
-    for group, shape, style in args.viz:
-        if shape not in SHAPE_LIST:
-            raise RuntimeError('unknown shape format: %s' % shape)
-        if (shape in [SHAPE_PATH, SHAPE_LINE] and style not in PATH_LIST) or (shape in [SHAPE_RECT, SHAPE_TILE] and style not in RECT_LIST):
-            raise RuntimeError('shape and style mismatch: %s %s' % (shape, style))
-
-        if group not in draw_style:
-            draw_style[group] = {}
-        draw_style[group][shape] = style
-
-if args.viz_color is not None:
-    for group, color in args.viz_color:
-        draw_color[group] = color
+if args.viz_none:
+    draw_style = {}
+    draw_style[None] = {}
+    draw_style[None][SHAPE_PATH] = PATH_NONE
+    draw_style[None][SHAPE_LINE] = PATH_NONE
+    draw_style[None][SHAPE_RECT] = RECT_NONE
+    draw_style[None][SHAPE_TILE] = RECT_NONE
 
 if args.viz_hide is not None:
     for group in args.viz_hide:
@@ -361,6 +375,36 @@ if args.viz_hide is not None:
         draw_style[group][SHAPE_LINE] = PATH_NONE
         draw_style[group][SHAPE_RECT] = RECT_NONE
         draw_style[group][SHAPE_TILE] = RECT_NONE
+
+if args.viz is not None:
+    for group, shape, style in args.viz:
+        if group not in draw_style:
+            draw_style[group] = {}
+
+        if shape is None:
+            shape_to_style = DRAW_STYLE_DEFAULT
+        elif shape in SHAPE_LIST:
+            if style is None:
+                style = DRAW_STYLE_DEFAULT[shape]
+            shape_to_style = {shape:style}
+        else:
+            raise RuntimeError('unknown shape: %s' % shape)
+
+        for shape, style in shape_to_style.items():
+            if (shape in [SHAPE_PATH, SHAPE_LINE] and style not in PATH_LIST) or (shape in [SHAPE_RECT, SHAPE_TILE] and style not in RECT_LIST):
+                raise RuntimeError('shape and style mismatch: %s %s' % (shape, style))
+
+            draw_style[group][shape] = style
+
+
+
+draw_color = {}
+
+if args.viz_color is not None:
+    for group, color in args.viz_color:
+        draw_color[group] = color
+
+
 
 def get_draw_color(group):
     if group in draw_color:
@@ -375,10 +419,7 @@ def get_draw_style(group, shape):
     if group in draw_style and shape in draw_style[group]:
         return draw_style[group][shape]
     else:
-        if args.viz_none:
-            return draw_style_none[shape]
-        else:
-            return draw_style_default[shape]
+        return draw_style[None][shape]
 
 
 
@@ -598,7 +639,7 @@ for li, levelfile in enumerate(args.levelfiles):
                 avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in points]
 
             for ii, (r1, c1, r2, c2) in enumerate(points):
-                svg += svg_line(r1, c1, r2, c2, args.padding, line_color, line_style == PATH_ARC, avoid_edges, False, False, '-arrow' in line_style, '-point' in line_style, '-dash' in line_style, '-thick' in line_style)
+                svg += svg_line(r1, c1, r2, c2, args.padding, line_color, 'arc-' in line_style, avoid_edges, False, False, '-arrow' in line_style, '-point' in line_style, '-dash' in line_style, '-thick' in line_style)
 
     for group, points_list in draw_path.items():
         for points in points_list:
@@ -611,7 +652,9 @@ for li, levelfile in enumerate(args.levelfiles):
             expanded_points = []
             prev_point = None
             for point in points:
-                if len(point) == 2:
+                if len(point) == 0:
+                    prev_point = None
+                elif len(point) == 2:
                     if prev_point is not None:
                         expanded_points.append([prev_point[0], prev_point[1], point[0], point[1]])
                     prev_point = point
@@ -628,7 +671,7 @@ for li, levelfile in enumerate(args.levelfiles):
                 avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in points]
 
             for ii, (r1, c1, r2, c2) in enumerate(points):
-                svg += svg_line(r1, c1, r2, c2, args.padding, path_color, path_style == PATH_ARC, avoid_edges, ii == 0, ii + 1 == len(points), '-arrow' in path_style, '-point' in path_style, '-dash' in path_style, '-thick' in path_style)
+                svg += svg_line(r1, c1, r2, c2, args.padding, path_color, 'arc-' in path_style, avoid_edges, ii == 0, ii + 1 == len(points), '-arrow' in path_style, '-point' in path_style, '-dash' in path_style, '-thick' in path_style)
 
     svg += '</svg>\n'
 
