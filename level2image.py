@@ -652,12 +652,17 @@ for li, levelfile in enumerate(args.levelfiles):
             expanded_points = []
             prev_point = None
             for point in points:
-                if len(point) == 0:
+                if point is None or len(point) == 0:
                     prev_point = None
                 elif len(point) == 2:
                     if prev_point is not None:
                         expanded_points.append([prev_point[0], prev_point[1], point[0], point[1]])
                     prev_point = point
+                elif len(point) == 6:
+                    fr, fc, tr, tc, pwtr, pwtc = point
+                    expanded_points.append([fr, fc, pwtr, pwtc])
+                    expanded_points.append([tr - (pwtr - fr), tc - (pwtc - fc), tr, tc])
+                    prev_point = [tr, tc]
                 else:
                     expanded_points.append(point)
                     prev_point = [point[-2], point[-1]]
