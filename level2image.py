@@ -649,34 +649,49 @@ for li, levelfile in enumerate(args.levelfiles):
             if path_style == PATH_NONE:
                 continue
 
-            expanded_points = []
+            solitary_points = []
+            edges = []
+
+            prev_point_connected = False
             prev_point = None
             for point in points:
                 if point is None or len(point) == 0:
+                    if prev_point is not None and not prev_point_connected:
+                        solitary_points.append(prev_point)
+                    prev_point_connected = False
                     prev_point = None
                 elif len(point) == 2:
                     if prev_point is not None:
-                        expanded_points.append([prev_point[0], prev_point[1], point[0], point[1]])
+                        edges.append([prev_point[0], prev_point[1], point[0], point[1]])
+                    prev_point_connected = prev_point is not None
                     prev_point = point
+                elif len(point) == 4:
+                    edges.append(point)
+                    prev_point_connected = True
+                    prev_point = [point[-2], point[-1]]
                 elif len(point) == 6:
                     fr, fc, tr, tc, pwtr, pwtc = point
-                    expanded_points.append([fr, fc, pwtr, pwtc])
-                    expanded_points.append([tr - (pwtr - fr), tc - (pwtc - fc), tr, tc])
+                    edges.append([fr, fc, pwtr, pwtc])
+                    edges.append([tr - (pwtr - fr), tc - (pwtc - fc), tr, tc])
+                    prev_point_connected = True
                     prev_point = [tr, tc]
                 else:
-                    expanded_points.append(point)
-                    prev_point = [point[-2], point[-1]]
-            points = expanded_points
+                    raise RuntimeError('unknown point type: %s' % str(point))
+
+            if prev_point is not None and not prev_point_connected:
+                solitary_points.append(prev_point)
 
             print(' - adding path %s' % group)
+            for r1, c1 in solitary_points:
+                print(' - WARNING: skipping solitary path point: %f %f' % (r1, c1))
 
             if args.no_avoid:
                 avoid_edges = None
             else:
-                avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in points]
+                avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in edges]
 
-            for ii, (r1, c1, r2, c2) in enumerate(points):
-                svg += svg_line(r1, c1, r2, c2, args.padding, path_color, 'arc-' in path_style, avoid_edges, ii == 0, ii + 1 == len(points), '-arrow' in path_style, '-point' in path_style, '-dash' in path_style, '-thick' in path_style)
+            for ii, (r1, c1, r2, c2) in enumerate(edges):
+                svg += svg_line(r1, c1, r2, c2, args.padding, path_color, 'arc-' in path_style, avoid_edges, ii == 0, ii + 1 == len(edges), '-arrow' in path_style, '-point' in path_style, '-dash' in path_style, '-thick' in path_style)
 
     svg += '</svg>\n'
 
