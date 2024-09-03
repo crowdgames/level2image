@@ -87,7 +87,7 @@ parser.add_argument('--anim-delay', type=int, help='Frame delay for animation (i
 parser.add_argument('--raster-scale', type=int, help='Amount to scale raster images by.', default=2)
 
 # Arguments for multiple levels in one image.
-parser.add_argument('--multi', type=int, nargs=4, metavar=('MAX_X', 'MAX_Y', 'PAD_X', 'PAD_Y'), help='Put multiple levels in one image; MAX_X: number of levels per row or -1 for unlimited; MAX_Y: number of levels per column or -1 for unlimited; PAD_X: padding between levels on each row; PAD_Y: padding between levels on each column')
+parser.add_argument('--multi', type=int, nargs=4, metavar=('MAX_X', 'MAX_Y', 'PAD_X', 'PAD_Y'), help='Put multiple levels in one image; MAX_X: number of levels per row or -1 for unlimited; MAX_Y: number of levels per column or -1 for unlimited; PAD_X: padding between levels on each row; PAD_Y: padding between levels on each column. Currently text only (no sprites).')
 
 group = parser.add_mutually_exclusive_group(required=False)
 group.add_argument('--cairosvg', action='store_true', help='Only try to use cairosvg converter.')
@@ -550,7 +550,7 @@ for li, levelfile in enumerate(args.levelfiles):
 
     else:
         if args.tile_image_folder is not None:
-            tile_image = PIL.Image.new('RGBA', (content_width, content_height), (0, 0, 0, 0))
+            tile_image = PIL.Image.new('RGBA', (level_width, level_height), (0, 0, 0, 0))
 
         tilepng = {}
 
