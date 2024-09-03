@@ -1008,7 +1008,7 @@ for li, levelfile in enumerate(args.levelfiles):
         elif lvlyi == 0:
             # Prep for adding to row.
             svg_width += PAD_X
-        if li == len(args.levelfiles):
+        if li == len(args.levelfiles) - 1:
             # Print at the last level regardless.
             finish_svg = True
 
