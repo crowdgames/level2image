@@ -717,7 +717,10 @@ for li, levelfile in enumerate(args.levelfiles):
         if lvlyi == 0:
             # Adding to first row adds to width.
             svg_width += level_width
-        if lvlxi == MAX_X:
+        if li == len(args.levelfiles) - 1:
+            # Print at the last level regardless.
+            finish_svg = True
+        elif lvlxi == MAX_X:
             # Add a new row; reset x offset and increase y offset.
             lvlxi = 0
             offset_x = args.padding
@@ -734,9 +737,6 @@ for li, levelfile in enumerate(args.levelfiles):
         elif lvlyi == 0:
             # Prep for adding to row.
             svg_width += PAD_X
-        if li == len(args.levelfiles) - 1:
-            # Print at the last level regardless.
-            finish_svg = True
 
     if not finish_svg:
         continue
