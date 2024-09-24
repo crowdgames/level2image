@@ -6,7 +6,8 @@ RECT_FILL         = 'fill'
 RECT_FILL_UNIQ    = 'fill-uniq'
 RECT_OUTLINE      = 'outline'
 RECT_BORDER       = 'border'
-RECT_LIST         = [RECT_NONE, RECT_FILL, RECT_FILL_UNIQ, RECT_OUTLINE, RECT_BORDER]
+RECT_BORDER_THICK = 'border-thick'
+RECT_LIST         = [RECT_NONE, RECT_FILL, RECT_FILL_UNIQ, RECT_OUTLINE, RECT_BORDER, RECT_BORDER_THICK]
 
 PATH_NONE         = 'none'
 PATH_LINE         = 'line'
@@ -133,6 +134,9 @@ def svg_rect(r0, c0, rsz, csz, padding, sides, style, color, drawn):
     elif style in [RECT_BORDER]:
         style_svg = 'stroke:%s;stroke-width:1.5;fill:none' % (color)
         inset = 0
+    elif style in [RECT_BORDER_THICK]:
+        style_svg = 'stroke:%s;stroke-width:3.0;fill:none' % (color)
+        inset = 0
     else:
         raise RuntimeError('unknown style: %s' % style)
 
@@ -148,7 +152,7 @@ def svg_rect(r0, c0, rsz, csz, padding, sides, style, color, drawn):
         y0 = (r0 + 0.5 * (rsz - 0.01)) * args.size_cell + padding
         ysz = 0.01
 
-    if style == RECT_BORDER:
+    if style in [RECT_BORDER, RECT_BORDER_THICK]:
         top, bottom, left, right = sides
         ret = ''
         if top:
@@ -603,7 +607,7 @@ for li, levelfile in enumerate(args.levelfiles):
 
             drawn = set()
             for rr, cc in points:
-                if tile_style == RECT_BORDER:
+                if tile_style in [RECT_BORDER, RECT_BORDER_THICK]:
                     sides = ([rr - 1, cc] not in points, [rr + 1, cc] not in points, [rr, cc - 1] not in points, [rr, cc + 1] not in points)
                 else:
                     sides = None
