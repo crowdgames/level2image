@@ -715,14 +715,6 @@ for li, levelfile in enumerate(args.levelfiles):
     svg += inner_svg
     svg += '</svg>\n'
 
-    if args.montage is not None:
-        # Reset for next svg.
-        inner_svg = ''
-        svg_width = args.padding
-        svg_height = args.padding
-        offset_x = args.padding
-        offset_y = args.padding
-
     if args.fmt == FMT_SVG:
         data = svg
         mode = 't'
@@ -745,6 +737,14 @@ for li, levelfile in enumerate(args.levelfiles):
         anim_data.append(svg2png(svg, svg_width, svg_height, args.raster_scale))
     else:
         raise RuntimeError('unknown format for output: %s' % args.fmt)
+
+    if args.montage is not None:
+        # Reset for next svg.
+        inner_svg = ''
+        svg_width = args.padding
+        svg_height = args.padding
+        offset_x = args.padding
+        offset_y = args.padding
 
     if args.fmt != FMT_GIF_ANIM:
         if args.stdout:
