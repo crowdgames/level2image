@@ -118,7 +118,7 @@ def is_between(ra, ca, rb, cb, rc, cc):
         return False
     return abs(distance(ra, ca, rb, cb) + distance(rb, cb, rc, cc) - distance(ra, ca, rc, cc)) < 0.01
 
-def svg_rect(r0, c0, rsz, csz, padding, sides, style, color, drawn):
+def svg_rect(r0, c0, rsz, csz, xoff, yoff, sides, style, color, drawn):
     if (rsz, csz) == (0, 0):
         print(' - WARNING: skipping zero-size rect: %f %f %f %f' % (r0, c0, rsz, csz))
         return ''
@@ -143,16 +143,16 @@ def svg_rect(r0, c0, rsz, csz, padding, sides, style, color, drawn):
     else:
         raise RuntimeError('unknown style: %s' % style)
 
-    x0 = c0 * args.size_cell + inset + padding
+    x0 = c0 * args.size_cell + inset + xoff
     xsz = csz * args.size_cell - 2 * inset
     if xsz <= 0:
-        x0 = (c0 + 0.5 * (csz - 0.01)) * args.size_cell + padding
+        x0 = (c0 + 0.5 * (csz - 0.01)) * args.size_cell + xoff
         xsz = 0.01
 
-    y0 = r0 * args.size_cell + inset + padding
+    y0 = r0 * args.size_cell + inset + yoff
     ysz = rsz * args.size_cell - 2 * inset
     if ysz <= 0:
-        y0 = (r0 + 0.5 * (rsz - 0.01)) * args.size_cell + padding
+        y0 = (r0 + 0.5 * (rsz - 0.01)) * args.size_cell + yoff
         ysz = 0.01
 
     if style in [RECT_BORDER, RECT_BORDER_THICK]:
@@ -172,11 +172,11 @@ def svg_rect(r0, c0, rsz, csz, padding, sides, style, color, drawn):
             raise RuntimeError('can\'t use sides with style: %s' % style)
         return '  <rect x="%.2f" y="%.2f" width="%.2f" height="%.2f" style="%s"/>\n' % (x0, y0, xsz, ysz, style_svg)
 
-def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_circle, to_circle, to_arrow, to_point, dash, thick):
-    x1 = (c1 + 0.5) * args.size_cell + padding
-    y1 = (r1 + 0.5) * args.size_cell + padding
-    x2 = (c2 + 0.5) * args.size_cell + padding
-    y2 = (r2 + 0.5) * args.size_cell + padding
+def svg_line(r1, c1, r2, c2, xoff, yoff, color, require_arc, arc_avoid_edges, from_circle, to_circle, to_arrow, to_point, dash, thick):
+    x1 = (c1 + 0.5) * args.size_cell + xoff
+    y1 = (r1 + 0.5) * args.size_cell + yoff
+    x2 = (c2 + 0.5) * args.size_cell + xoff
+    y2 = (r2 + 0.5) * args.size_cell + yoff
 
     opts_shape = ''
     if thick:
@@ -587,7 +587,7 @@ for li, levelfile in enumerate(args.levelfiles):
                     sides = ([rr - 1, cc] not in points, [rr + 1, cc] not in points, [rr, cc - 1] not in points, [rr, cc + 1] not in points)
                 else:
                     sides = None
-                inner_svg += svg_rect(rr, cc, 1, 1, args.padding, sides, tile_style, tile_color, drawn)
+                inner_svg += svg_rect(rr, cc, 1, 1, offset_x, offset_y, sides, tile_style, tile_color, drawn)
 
         elif shape == SHAPE_RECT:
             rect_color = get_draw_color(group)
@@ -600,7 +600,7 @@ for li, levelfile in enumerate(args.levelfiles):
 
             drawn = set()
             for r1, c1, r2, c2 in points:
-                inner_svg += svg_rect(r1, c1, r2 - r1, c2 - c1, args.padding, None, rect_style, rect_color, drawn)
+                inner_svg += svg_rect(r1, c1, r2 - r1, c2 - c1, offset_x, offset_y, None, rect_style, rect_color, drawn)
 
         elif shape == SHAPE_LINE:
             line_color = get_draw_color(group)
@@ -617,7 +617,7 @@ for li, levelfile in enumerate(args.levelfiles):
                 avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in points]
 
             for ii, (r1, c1, r2, c2) in enumerate(points):
-                inner_svg += svg_line(r1, c1, r2, c2, args.padding, line_color, 'arc-' in line_style, avoid_edges, False, False, '-arrow' in line_style, '-point' in line_style, '-dash' in line_style, '-thick' in line_style)
+                inner_svg += svg_line(r1, c1, r2, c2, offset_x, offset_y, line_color, 'arc-' in line_style, avoid_edges, False, False, '-arrow' in line_style, '-point' in line_style, '-dash' in line_style, '-thick' in line_style)
 
         elif shape == SHAPE_PATH:
             path_color = get_draw_color(group)
@@ -668,7 +668,7 @@ for li, levelfile in enumerate(args.levelfiles):
                 avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in edges]
 
             for ii, (r1, c1, r2, c2) in enumerate(edges):
-                inner_svg += svg_line(r1, c1, r2, c2, args.padding, path_color, 'arc-' in path_style, avoid_edges, ii == 0, ii + 1 == len(edges), '-arrow' in path_style, '-point' in path_style, '-dash' in path_style, '-thick' in path_style)
+                inner_svg += svg_line(r1, c1, r2, c2, offset_x, offset_y, path_color, 'arc-' in path_style, avoid_edges, ii == 0, ii + 1 == len(edges), '-arrow' in path_style, '-point' in path_style, '-dash' in path_style, '-thick' in path_style)
 
     finish_svg = True
     if args.montage is not None:
