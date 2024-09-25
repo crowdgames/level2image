@@ -355,6 +355,9 @@ if svg2pdf is None or svg2png is None:
     sys.exit(-1)
 
 
+
+draw_order = []
+
 DRAW_STYLE_DEFAULT = {}
 DRAW_STYLE_DEFAULT[SHAPE_PATH] = PATH_LINE_ARROW
 DRAW_STYLE_DEFAULT[SHAPE_LINE] = PATH_LINE_ARROW
@@ -387,10 +390,12 @@ if args.viz is not None:
 
         if shape is None:
             shape_to_style = DRAW_STYLE_DEFAULT
+            shape_order = SHAPE_LIST
         elif shape in SHAPE_LIST:
             if style is None:
                 style = DRAW_STYLE_DEFAULT[shape]
             shape_to_style = {shape:style}
+            shape_order = [shape]
         else:
             raise RuntimeError('unknown shape: %s' % shape)
 
@@ -399,6 +404,10 @@ if args.viz is not None:
                 raise RuntimeError('shape and style mismatch: %s %s' % (shape, style))
 
             draw_style[group][shape] = style
+
+        for shape in shape_order:
+            draw_order = [elem for elem in draw_order if elem != (group, shape)]
+            draw_order.append((group, shape))
 
 
 
@@ -437,86 +446,37 @@ for li, levelfile in enumerate(args.levelfiles):
     lines = []
     max_line_len = 0
 
-    draw_path = {}
-    draw_line = {}
-    draw_rect = {}
-    draw_tile = {}
-
-    def add_draw_data(draw_dict, meta):
-        group = meta['group'] if 'group' in meta else '_DEFAULT'
-        data = meta['data']
-
-        if group not in draw_dict:
-            draw_dict[group] = []
-        draw_dict[group].append(data)
-
-    def add_draw_data_old(draw_dict, line):
-        line = line.strip()
-        splt = line.split(';')
-        if len(splt) == 1:
-            group = '_DEFAULT'
-            points_str = splt[0].strip()
-        elif len(splt) == 2:
-            group = splt[0].strip()
-            points_str = splt[1].strip()
-        else:
-            raise RuntimeError('unknown DRAW format: %s' % line)
-
-        if len(points_str) == 0:
-            print(' - WARNING: empty DRAW line: %s' % line)
-            points = []
-        else:
-            points = [tuple([float(el) for el in pt.strip().split()]) for pt in points_str.split(',')]
-
-        if group not in draw_dict:
-            draw_dict[group] = []
-        draw_dict[group].append(points)
+    draw_data = []
 
     with open(levelfile, 'rt') as lvl:
         for line in lvl:
             line = line.rstrip('\n')
 
-            if line.startswith('META DRAW'):
-                TAG = 'META DRAW PATH:'
-                if line.startswith(TAG):
-                    add_draw_data_old(draw_path, line[len(TAG):])
-                    continue
-
-                TAG = 'META DRAW LINE:'
-                if line.startswith(TAG):
-                    add_draw_data_old(draw_line, line[len(TAG):])
-                    continue
-
-                TAG = 'META DRAW RECT:'
-                if line.startswith(TAG):
-                    add_draw_data_old(draw_rect, line[len(TAG):])
-                    continue
-
-                TAG = 'META DRAW TILE:'
-                if line.startswith(TAG):
-                    add_draw_data_old(draw_tile, line[len(TAG):])
-                    continue
-
-            elif line.startswith('META REM'):
-                    continue
-
-            elif line.startswith('META'):
+            if line.startswith('META'):
                 meta = json.loads(line[4:])
                 if meta['type'] == 'geom':
-                    if meta['shape'] == 'path':
-                        add_draw_data(draw_path, meta)
-                    elif meta['shape'] == 'line':
-                        add_draw_data(draw_line, meta)
-                    elif meta['shape'] == 'rect':
-                        add_draw_data(draw_rect, meta)
-                    elif meta['shape'] == 'tile':
-                        add_draw_data(draw_tile, meta)
+                    if meta['shape'] in SHAPE_LIST:
+                        draw_data.append((meta['group'], meta['shape'], meta['data']))
                     else:
                         print(' - WARNING: unrecognized META geom: %s' % line)
 
             else:
                 lines.append(line)
                 max_line_len = max(max_line_len, len(line))
+
+    draw_data_order = []
+    for ogroup, oshape in draw_order:
+        new_draw_data = []
+        for meta in draw_data:
+            mgroup, mshape, mpoints = meta
+            if (mgroup, mshape) == (ogroup, oshape):
+                draw_data_order.append(meta)
+            else:
+                new_draw_data.append(meta)
+        draw_data = new_draw_data
+    draw_data = draw_data + draw_data_order
+
+
 
     svg = ''
 
@@ -595,8 +555,8 @@ for li, levelfile in enumerate(args.levelfiles):
         pngdata = b64_image(tile_image)
         svg += '  <image x="%d" y="%d" width="%d" height="%d" href="data:image/png;base64,%s"/>\n' % (args.padding, args.padding, content_width, content_height, pngdata)
 
-    for group, points_list in draw_tile.items():
-        for points in points_list:
+    for group, shape, points in draw_data:
+        if shape == SHAPE_TILE:
             tile_color = get_draw_color(group)
             tile_style = get_draw_style(group, SHAPE_TILE)
 
@@ -613,8 +573,7 @@ for li, levelfile in enumerate(args.levelfiles):
                     sides = None
                 svg += svg_rect(rr, cc, 1, 1, args.padding, sides, tile_style, tile_color, drawn)
 
-    for group, points_list in draw_rect.items():
-        for points in points_list:
+        elif shape == SHAPE_RECT:
             rect_color = get_draw_color(group)
             rect_style = get_draw_style(group, SHAPE_RECT)
 
@@ -627,8 +586,7 @@ for li, levelfile in enumerate(args.levelfiles):
             for r1, c1, r2, c2 in points:
                 svg += svg_rect(r1, c1, r2 - r1, c2 - c1, args.padding, None, rect_style, rect_color, drawn)
 
-    for group, points_list in draw_line.items():
-        for points in points_list:
+        elif shape == SHAPE_LINE:
             line_color = get_draw_color(group)
             line_style = get_draw_style(group, SHAPE_LINE)
 
@@ -645,8 +603,7 @@ for li, levelfile in enumerate(args.levelfiles):
             for ii, (r1, c1, r2, c2) in enumerate(points):
                 svg += svg_line(r1, c1, r2, c2, args.padding, line_color, 'arc-' in line_style, avoid_edges, False, False, '-arrow' in line_style, '-point' in line_style, '-dash' in line_style, '-thick' in line_style)
 
-    for group, points_list in draw_path.items():
-        for points in points_list:
+        elif shape == SHAPE_PATH:
             path_color = get_draw_color(group)
             path_style = get_draw_style(group, SHAPE_PATH)
 
