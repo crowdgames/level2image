@@ -70,8 +70,9 @@ group.add_argument('--background-files', type=str, nargs='+', help='Input backgr
 group.add_argument('--background-suffix', type=str, help='Suffix to remove from filenames when looking for backgrounds.')
 group.add_argument('--background-none', action='store_true', help='Don\'t automatically use background images if present.')
 
-parser.add_argument('--size-font', type=int, help='Font size.', default=8)
-parser.add_argument('--size-cell', type=int, help='cell size.', default=11)
+parser.add_argument('--font-scale', type=float, help='Amount to scale cell size by to get font size.', default=0.7)
+parser.add_argument('--font-yadjust', type=float, help='Amount to adjust y position of text in cell.', default=0.12)
+parser.add_argument('--cell-size', type=int, help='Cell size.', default=11)
 parser.add_argument('--cfgfile', type=str, help='Config file.')
 parser.add_argument('--suffix', type=str, help='Extra suffix to add to output file.', default='.out')
 parser.add_argument('--fmt', type=str, choices=FMT_LIST, help='Output format, from: ' + ','.join(FMT_LIST) + '.', default=FMT_PDF)
@@ -143,16 +144,16 @@ def svg_rect(r0, c0, rsz, csz, xoff, yoff, sides, style, color, drawn):
     else:
         raise RuntimeError('unknown style: %s' % style)
 
-    x0 = c0 * args.size_cell + inset + xoff
-    xsz = csz * args.size_cell - 2 * inset
+    x0 = c0 * args.cell_size + inset + xoff
+    xsz = csz * args.cell_size - 2 * inset
     if xsz <= 0:
-        x0 = (c0 + 0.5 * (csz - 0.01)) * args.size_cell + xoff
+        x0 = (c0 + 0.5 * (csz - 0.01)) * args.cell_size + xoff
         xsz = 0.01
 
-    y0 = r0 * args.size_cell + inset + yoff
-    ysz = rsz * args.size_cell - 2 * inset
+    y0 = r0 * args.cell_size + inset + yoff
+    ysz = rsz * args.cell_size - 2 * inset
     if ysz <= 0:
-        y0 = (r0 + 0.5 * (rsz - 0.01)) * args.size_cell + yoff
+        y0 = (r0 + 0.5 * (rsz - 0.01)) * args.cell_size + yoff
         ysz = 0.01
 
     if style in [RECT_BORDER, RECT_BORDER_THICK]:
@@ -173,10 +174,10 @@ def svg_rect(r0, c0, rsz, csz, xoff, yoff, sides, style, color, drawn):
         return '  <rect x="%.2f" y="%.2f" width="%.2f" height="%.2f" style="%s"/>\n' % (x0, y0, xsz, ysz, style_svg)
 
 def svg_line(r1, c1, r2, c2, xoff, yoff, color, require_arc, arc_avoid_edges, from_circle, to_circle, to_arrow, to_point, dash, thick):
-    x1 = (c1 + 0.5) * args.size_cell + xoff
-    y1 = (r1 + 0.5) * args.size_cell + yoff
-    x2 = (c2 + 0.5) * args.size_cell + xoff
-    y2 = (r2 + 0.5) * args.size_cell + yoff
+    x1 = (c1 + 0.5) * args.cell_size + xoff
+    y1 = (r1 + 0.5) * args.cell_size + yoff
+    x2 = (c2 + 0.5) * args.cell_size + xoff
+    y2 = (r2 + 0.5) * args.cell_size + yoff
 
     opts_shape = ''
     if thick:
@@ -210,7 +211,7 @@ def svg_line(r1, c1, r2, c2, xoff, yoff, color, require_arc, arc_avoid_edges, fr
     else:
         orthx = (y1 - y2) / 4
         orthy = (x2 - x1) / 4
-    orthmax = 0.75 * args.size_cell
+    orthmax = 0.75 * args.cell_size
     orthlen = distance(0, 0, orthx, orthy)
 
     orthx = orthx / orthlen * orthmax
@@ -491,8 +492,8 @@ for li, levelfile in enumerate(args.levelfiles):
 
 
 
-    level_width = max_line_len * args.size_cell
-    level_height = len(lines) * args.size_cell
+    level_width = max_line_len * args.cell_size
+    level_height = len(lines) * args.cell_size
     if args.montage is None:
         inner_svg = ''
         offset_x = args.padding
@@ -526,8 +527,8 @@ for li, levelfile in enumerate(args.levelfiles):
                 if args.no_blank and char == ' ':
                     continue
 
-                inner_x = chari * args.size_cell
-                inner_y = (linei + 1) * args.size_cell - 1
+                inner_x = chari * args.cell_size
+                inner_y = (linei + 1) * args.cell_size - 1
                 x = inner_x + offset_x
                 y = inner_y + offset_y
 
@@ -535,14 +536,14 @@ for li, levelfile in enumerate(args.levelfiles):
                     tilepngname = os.path.join(args.tile_image_folder, char + '.png')
                     if os.path.exists(tilepngname):
                         image = load_image(tilepngname)
-                        if image.size != (args.size_cell, args.size_cell):
-                            image = image.resize((args.size_cell, args.size_cell))
+                        if image.size != (args.cell_size, args.cell_size):
+                            image = image.resize((args.cell_size, args.cell_size))
                         tilepng[char] = image
                     else:
                         tilepng[char] = None
 
                 if char in tilepng and tilepng[char] is not None:
-                    tile_image.paste(tilepng[char], (inner_x, inner_y - args.size_cell + 1))
+                    tile_image.paste(tilepng[char], (inner_x, inner_y - args.cell_size + 1))
 
                 else:
                     clr = cfg['tile'][char] if char in cfg['tile'] else 'grey'
@@ -556,7 +557,7 @@ for li, levelfile in enumerate(args.levelfiles):
                         char = '&#38;'
                     elif char in '─│┐┘└┌':
                         pth = {'─': (0.0, 0.5, 1.0, 0.5), '│': (0.5, 0.0, 0.5, 1.0), '┐': (0.5, 1.0, 0.0, 0.5), '┘': (0.0, 0.5, 0.5, 0.0), '└': (0.5, 0.0, 1.0, 0.5), '┌': (1.0, 0.5, 0.5, 1.0)}[char]
-                        gz = args.size_cell
+                        gz = args.cell_size
                         yo = y - gz + 1
                         char = None
                         custom = '<path d="M %.2f %.2f L %.2f %.2f L %.2f %.2f" stroke="%s" stroke-width="1" stroke-linecap="round" fill="none"/>' % (x + gz * pth[0], yo + gz * pth[1], x + gz * 0.5, yo + gz * 0.5, x + gz * pth[2], yo + gz * pth[3], clr)
@@ -564,8 +565,8 @@ for li, levelfile in enumerate(args.levelfiles):
                     if custom is not None:
                         inner_svg += '  ' + custom + '\n'
                     if char is not None:
-                        inner_svg += '  <text x="%.2f" y="%.2f" dominant-baseline="middle" text-anchor="middle" fill="%s" style="fill-opacity:%.2f">%s</text>\n' % (x + 0.5 * args.size_cell, y - 0.34 * args.size_cell, clr, 1.0, char)
-                    inner_svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%.2f"/>\n' % (x, y - args.size_cell + 1, args.size_cell, args.size_cell, clr, 0.3)
+                        inner_svg += '  <text x="%.2f" y="%.2f" dominant-baseline="middle" text-anchor="middle" fill="%s" style="fill-opacity:%.2f">%s</text>\n' % (x + 0.5 * args.cell_size, y - (0.5 - args.font_yadjust) * args.cell_size, clr, 1.0, char)
+                    inner_svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%.2f"/>\n' % (x, y - args.cell_size + 1, args.cell_size, args.cell_size, clr, 0.3)
 
     if tile_image is not None:
         pngdata = b64_image(tile_image)
@@ -710,7 +711,7 @@ for li, levelfile in enumerate(args.levelfiles):
     svg = ''
     svg_width += args.padding
     svg_height += args.padding
-    svg += '<svg viewBox="0 0 %d %d" version="1.1" xmlns="http://www.w3.org/2000/svg" font-family="Courier, monospace" font-size="%.2fpt">\n' % (svg_width, svg_height, args.size_font)
+    svg += '<svg viewBox="0 0 %d %d" version="1.1" xmlns="http://www.w3.org/2000/svg" font-family="Courier, monospace" font-size="%.2fpt">\n' % (svg_width, svg_height, args.font_scale * args.cell_size)
     svg += inner_svg
     svg += '</svg>\n'
 

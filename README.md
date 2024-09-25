@@ -72,7 +72,7 @@ python level2image.py example/example.lvl --viz-none
 python level2image.py example/example.lvl --viz-none --viz path path line-arrow
 
 # Tileset png
-python level2image.py example/example_frames/step000.lvl --fmt=png --tile-image-folder=example/example_sprites --size-cell 64 --raster-scale 1
+python level2image.py example/example_frames/step000.lvl --fmt=png --tile-image-folder=example/example_sprites --cell-size 64 --raster-scale 1
 
 # Text gif
 python level2image.py example/example_frames/*.lvl --fmt=gif-anim
@@ -81,7 +81,7 @@ python level2image.py example/example_frames/*.lvl --fmt=gif-anim
 python level2image.py example/example_with_spriteset.lvl --tile-image-folder=example/example_sprites
 
 # Tileset gif
-python level2image.py example/example_frames/*.lvl --fmt=gif-anim --tile-image-folder=example/example_sprites --size-cell 32 --raster-scale 1
+python level2image.py example/example_frames/*.lvl --fmt=gif-anim --tile-image-folder=example/example_sprites --cell-size 32 --raster-scale 1
 
 # Montage pdf - each png has up to 4x3 levels with 10 pixel spacing between columns and 20 between rows, with 5 padding around edges
 python level2image.py example/example_frames/*.lvl --montage 4 3 10 20 --padding 5
