@@ -87,6 +87,9 @@ parser.add_argument('--padding', type=int, help='Padding around edges.', default
 parser.add_argument('--anim-delay', type=int, help='Frame delay for animation (in ms).', default=250)
 parser.add_argument('--raster-scale', type=int, help='Amount to scale raster images by.', default=2)
 
+# Arguments for multiple levels in one image.
+parser.add_argument('--montage', type=int, nargs=4, metavar=('MAX_X', 'MAX_Y', 'PAD_X', 'PAD_Y'), help='Put multiple levels in one image; MAX_X: number of levels per row or -1 for unlimited; MAX_Y: number of levels per column or -1 for unlimited; PAD_X: padding between levels on each row; PAD_Y: padding between levels on each column.')
+
 group = parser.add_mutually_exclusive_group(required=False)
 group.add_argument('--cairosvg', action='store_true', help='Only try to use cairosvg converter.')
 group.add_argument('--svglib', action='store_true', help='Only try to use svglib converter.')
@@ -115,7 +118,7 @@ def is_between(ra, ca, rb, cb, rc, cc):
         return False
     return abs(distance(ra, ca, rb, cb) + distance(rb, cb, rc, cc) - distance(ra, ca, rc, cc)) < 0.01
 
-def svg_rect(r0, c0, rsz, csz, padding, sides, style, color, drawn):
+def svg_rect(r0, c0, rsz, csz, xoff, yoff, sides, style, color, drawn):
     if (rsz, csz) == (0, 0):
         print(' - WARNING: skipping zero-size rect: %f %f %f %f' % (r0, c0, rsz, csz))
         return ''
@@ -140,16 +143,16 @@ def svg_rect(r0, c0, rsz, csz, padding, sides, style, color, drawn):
     else:
         raise RuntimeError('unknown style: %s' % style)
 
-    x0 = c0 * args.size_cell + inset + padding
+    x0 = c0 * args.size_cell + inset + xoff
     xsz = csz * args.size_cell - 2 * inset
     if xsz <= 0:
-        x0 = (c0 + 0.5 * (csz - 0.01)) * args.size_cell + padding
+        x0 = (c0 + 0.5 * (csz - 0.01)) * args.size_cell + xoff
         xsz = 0.01
 
-    y0 = r0 * args.size_cell + inset + padding
+    y0 = r0 * args.size_cell + inset + yoff
     ysz = rsz * args.size_cell - 2 * inset
     if ysz <= 0:
-        y0 = (r0 + 0.5 * (rsz - 0.01)) * args.size_cell + padding
+        y0 = (r0 + 0.5 * (rsz - 0.01)) * args.size_cell + yoff
         ysz = 0.01
 
     if style in [RECT_BORDER, RECT_BORDER_THICK]:
@@ -169,11 +172,11 @@ def svg_rect(r0, c0, rsz, csz, padding, sides, style, color, drawn):
             raise RuntimeError('can\'t use sides with style: %s' % style)
         return '  <rect x="%.2f" y="%.2f" width="%.2f" height="%.2f" style="%s"/>\n' % (x0, y0, xsz, ysz, style_svg)
 
-def svg_line(r1, c1, r2, c2, padding, color, require_arc, arc_avoid_edges, from_circle, to_circle, to_arrow, to_point, dash, thick):
-    x1 = (c1 + 0.5) * args.size_cell + padding
-    y1 = (r1 + 0.5) * args.size_cell + padding
-    x2 = (c2 + 0.5) * args.size_cell + padding
-    y2 = (r2 + 0.5) * args.size_cell + padding
+def svg_line(r1, c1, r2, c2, xoff, yoff, color, require_arc, arc_avoid_edges, from_circle, to_circle, to_arrow, to_point, dash, thick):
+    x1 = (c1 + 0.5) * args.size_cell + xoff
+    y1 = (r1 + 0.5) * args.size_cell + yoff
+    x2 = (c2 + 0.5) * args.size_cell + xoff
+    y2 = (r2 + 0.5) * args.size_cell + yoff
 
     opts_shape = ''
     if thick:
@@ -440,6 +443,16 @@ anim_name, anim_data = None, None
 if args.fmt == FMT_GIF_ANIM:
     anim_data = []
 
+inner_svg = ''
+offset_x = args.padding
+offset_y = args.padding
+svg_width = args.padding
+svg_height = args.padding
+lvlxi = 0
+lvlyi = 0
+
+tilepng = {}
+
 for li, levelfile in enumerate(args.levelfiles):
     print('processing', levelfile)
 
@@ -478,13 +491,16 @@ for li, levelfile in enumerate(args.levelfiles):
 
 
 
-    svg = ''
+    level_width = max_line_len * args.size_cell
+    level_height = len(lines) * args.size_cell
+    if args.montage is None:
+        inner_svg = ''
+        offset_x = args.padding
+        offset_y = args.padding
+        svg_width = args.padding + level_width
+        svg_height = args.padding + level_height
 
-    content_width = max_line_len * args.size_cell
-    content_height = len(lines) * args.size_cell
-    svg_width = content_width + 2 * args.padding
-    svg_height = content_height + 2 * args.padding
-    svg += '<svg viewBox="0 0 %d %d" version="1.1" xmlns="http://www.w3.org/2000/svg" font-family="Courier, monospace" font-size="%.2fpt">\n' % (svg_width, svg_height, args.size_font)
+
 
     pngfilename = None
     if args.background_files is not None:
@@ -499,21 +515,21 @@ for li, levelfile in enumerate(args.levelfiles):
     if pngfilename is not None and os.path.exists(pngfilename):
         print(' - adding png background')
         pngdata = load_b64_image(pngfilename)
-        svg += '  <image x="%d" y="%d" width="%d" height="%d" href="data:image/png;base64,%s"/>\n' % (args.padding, args.padding, content_width, content_height, pngdata)
+        inner_svg += '  <image x="%d" y="%d" width="%d" height="%d" href="data:image/png;base64,%s"/>\n' % (offset_x, offset_y, level_width, level_height, pngdata)
 
     else:
         if args.tile_image_folder is not None:
-            tile_image = PIL.Image.new('RGBA', (content_width, content_height), (0, 0, 0, 0))
-
-        tilepng = {}
+            tile_image = PIL.Image.new('RGBA', (level_width, level_height), (0, 0, 0, 0))
 
         for linei, line in enumerate(lines):
             for chari, char in enumerate(line):
                 if args.no_blank and char == ' ':
                     continue
 
-                x = chari * args.size_cell + args.padding
-                y = (linei + 1) * args.size_cell - 1 + args.padding
+                inner_x = chari * args.size_cell
+                inner_y = (linei + 1) * args.size_cell - 1
+                x = inner_x + offset_x
+                y = inner_y + offset_y
 
                 if args.tile_image_folder is not None and char not in tilepng:
                     tilepngname = os.path.join(args.tile_image_folder, char + '.png')
@@ -526,7 +542,7 @@ for li, levelfile in enumerate(args.levelfiles):
                         tilepng[char] = None
 
                 if char in tilepng and tilepng[char] is not None:
-                    tile_image.paste(tilepng[char], (x - args.padding, y + 1 - args.size_cell - args.padding))
+                    tile_image.paste(tilepng[char], (inner_x, inner_y - args.size_cell + 1))
 
                 else:
                     clr = cfg['tile'][char] if char in cfg['tile'] else 'grey'
@@ -546,14 +562,14 @@ for li, levelfile in enumerate(args.levelfiles):
                         custom = '<path d="M %.2f %.2f L %.2f %.2f L %.2f %.2f" stroke="%s" stroke-width="1" stroke-linecap="round" fill="none"/>' % (x + gz * pth[0], yo + gz * pth[1], x + gz * 0.5, yo + gz * 0.5, x + gz * pth[2], yo + gz * pth[3], clr)
 
                     if custom is not None:
-                        svg += '  ' + custom + '\n'
+                        inner_svg += '  ' + custom + '\n'
                     if char is not None:
-                        svg += '  <text x="%.2f" y="%.2f" dominant-baseline="middle" text-anchor="middle" fill="%s" style="fill-opacity:%.2f">%s</text>\n' % (x + 0.5 * args.size_cell, y - 0.34 * args.size_cell, clr, 1.0, char)
-                    svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%.2f"/>\n' % (x, y - args.size_cell + 1, args.size_cell, args.size_cell, clr, 0.3)
+                        inner_svg += '  <text x="%.2f" y="%.2f" dominant-baseline="middle" text-anchor="middle" fill="%s" style="fill-opacity:%.2f">%s</text>\n' % (x + 0.5 * args.size_cell, y - 0.34 * args.size_cell, clr, 1.0, char)
+                    inner_svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%.2f"/>\n' % (x, y - args.size_cell + 1, args.size_cell, args.size_cell, clr, 0.3)
 
     if tile_image is not None:
         pngdata = b64_image(tile_image)
-        svg += '  <image x="%d" y="%d" width="%d" height="%d" href="data:image/png;base64,%s"/>\n' % (args.padding, args.padding, content_width, content_height, pngdata)
+        inner_svg += '  <image x="%d" y="%d" width="%d" height="%d" href="data:image/png;base64,%s"/>\n' % (offset_x, offset_y, level_width, level_height, pngdata)
 
     for group, shape, points in draw_data:
         if shape == SHAPE_TILE:
@@ -571,7 +587,7 @@ for li, levelfile in enumerate(args.levelfiles):
                     sides = ([rr - 1, cc] not in points, [rr + 1, cc] not in points, [rr, cc - 1] not in points, [rr, cc + 1] not in points)
                 else:
                     sides = None
-                svg += svg_rect(rr, cc, 1, 1, args.padding, sides, tile_style, tile_color, drawn)
+                inner_svg += svg_rect(rr, cc, 1, 1, offset_x, offset_y, sides, tile_style, tile_color, drawn)
 
         elif shape == SHAPE_RECT:
             rect_color = get_draw_color(group)
@@ -584,7 +600,7 @@ for li, levelfile in enumerate(args.levelfiles):
 
             drawn = set()
             for r1, c1, r2, c2 in points:
-                svg += svg_rect(r1, c1, r2 - r1, c2 - c1, args.padding, None, rect_style, rect_color, drawn)
+                inner_svg += svg_rect(r1, c1, r2 - r1, c2 - c1, offset_x, offset_y, None, rect_style, rect_color, drawn)
 
         elif shape == SHAPE_LINE:
             line_color = get_draw_color(group)
@@ -601,7 +617,7 @@ for li, levelfile in enumerate(args.levelfiles):
                 avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in points]
 
             for ii, (r1, c1, r2, c2) in enumerate(points):
-                svg += svg_line(r1, c1, r2, c2, args.padding, line_color, 'arc-' in line_style, avoid_edges, False, False, '-arrow' in line_style, '-point' in line_style, '-dash' in line_style, '-thick' in line_style)
+                inner_svg += svg_line(r1, c1, r2, c2, offset_x, offset_y, line_color, 'arc-' in line_style, avoid_edges, False, False, '-arrow' in line_style, '-point' in line_style, '-dash' in line_style, '-thick' in line_style)
 
         elif shape == SHAPE_PATH:
             path_color = get_draw_color(group)
@@ -652,9 +668,59 @@ for li, levelfile in enumerate(args.levelfiles):
                 avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in edges]
 
             for ii, (r1, c1, r2, c2) in enumerate(edges):
-                svg += svg_line(r1, c1, r2, c2, args.padding, path_color, 'arc-' in path_style, avoid_edges, ii == 0, ii + 1 == len(edges), '-arrow' in path_style, '-point' in path_style, '-dash' in path_style, '-thick' in path_style)
+                inner_svg += svg_line(r1, c1, r2, c2, offset_x, offset_y, path_color, 'arc-' in path_style, avoid_edges, ii == 0, ii + 1 == len(edges), '-arrow' in path_style, '-point' in path_style, '-dash' in path_style, '-thick' in path_style)
 
+    finish_svg = True
+    if args.montage is not None:
+        MAX_X, MAX_Y, PAD_X, PAD_Y = args.montage
+        finish_svg = False
+        if lvlxi == 0:
+            # Adding a new row adds to height.
+            svg_height += level_height
+        # Add to row
+        lvlxi += 1
+        offset_x += level_width + PAD_X
+        if lvlyi == 0:
+            # Adding to first row adds to width.
+            svg_width += level_width
+        if li == len(args.levelfiles) - 1:
+            # Print at the last level regardless.
+            finish_svg = True
+        elif lvlxi == MAX_X:
+            # Add a new row; reset x offset and increase y offset.
+            lvlxi = 0
+            offset_x = args.padding
+            lvlyi += 1
+            offset_y += level_height + PAD_Y
+            if lvlyi == MAX_Y:
+                # Start a new svg entirely.
+                lvlyi = 0
+                offset_y = args.padding
+                finish_svg = True
+            else:
+                # Prep for new row.
+                svg_height += PAD_Y
+        elif lvlyi == 0:
+            # Prep for adding to row.
+            svg_width += PAD_X
+
+    if not finish_svg:
+        continue
+
+    svg = ''
+    svg_width += args.padding
+    svg_height += args.padding
+    svg += '<svg viewBox="0 0 %d %d" version="1.1" xmlns="http://www.w3.org/2000/svg" font-family="Courier, monospace" font-size="%.2fpt">\n' % (svg_width, svg_height, args.size_font)
+    svg += inner_svg
     svg += '</svg>\n'
+
+    if args.montage is not None:
+        # Reset for next svg.
+        inner_svg = ''
+        svg_width = args.padding
+        svg_height = args.padding
+        offset_x = args.padding
+        offset_y = args.padding
 
     if args.fmt == FMT_SVG:
         data = svg
