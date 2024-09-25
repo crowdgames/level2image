@@ -88,7 +88,7 @@ parser.add_argument('--anim-delay', type=int, help='Frame delay for animation (i
 parser.add_argument('--raster-scale', type=int, help='Amount to scale raster images by.', default=2)
 
 # Arguments for multiple levels in one image.
-parser.add_argument('--multi', type=int, nargs=4, metavar=('MAX_X', 'MAX_Y', 'PAD_X', 'PAD_Y'), help='Put multiple levels in one image; MAX_X: number of levels per row or -1 for unlimited; MAX_Y: number of levels per column or -1 for unlimited; PAD_X: padding between levels on each row; PAD_Y: padding between levels on each column. Currently text only (no sprites).')
+parser.add_argument('--montage', type=int, nargs=4, metavar=('MAX_X', 'MAX_Y', 'PAD_X', 'PAD_Y'), help='Put multiple levels in one image; MAX_X: number of levels per row or -1 for unlimited; MAX_Y: number of levels per column or -1 for unlimited; PAD_X: padding between levels on each row; PAD_Y: padding between levels on each column.')
 
 group = parser.add_mutually_exclusive_group(required=False)
 group.add_argument('--cairosvg', action='store_true', help='Only try to use cairosvg converter.')
@@ -451,6 +451,8 @@ svg_height = args.padding
 lvlxi = 0
 lvlyi = 0
 
+tilepng = {}
+
 for li, levelfile in enumerate(args.levelfiles):
     print('processing', levelfile)
 
@@ -491,7 +493,7 @@ for li, levelfile in enumerate(args.levelfiles):
 
     level_width = max_line_len * args.size_cell
     level_height = len(lines) * args.size_cell
-    if args.multi is None:
+    if args.montage is None:
         inner_svg = ''
         offset_x = args.padding
         offset_y = args.padding
@@ -519,15 +521,15 @@ for li, levelfile in enumerate(args.levelfiles):
         if args.tile_image_folder is not None:
             tile_image = PIL.Image.new('RGBA', (level_width, level_height), (0, 0, 0, 0))
 
-        tilepng = {}
-
         for linei, line in enumerate(lines):
             for chari, char in enumerate(line):
                 if args.no_blank and char == ' ':
                     continue
 
-                x = chari * args.size_cell + offset_x
-                y = (linei + 1) * args.size_cell - 1 + offset_y
+                inner_x = chari * args.size_cell
+                inner_y = (linei + 1) * args.size_cell - 1
+                x = inner_x + offset_x
+                y = inner_y + offset_y
 
                 if args.tile_image_folder is not None and char not in tilepng:
                     tilepngname = os.path.join(args.tile_image_folder, char + '.png')
@@ -540,7 +542,7 @@ for li, levelfile in enumerate(args.levelfiles):
                         tilepng[char] = None
 
                 if char in tilepng and tilepng[char] is not None:
-                    tile_image.paste(tilepng[char], (x - args.padding, y + 1 - args.size_cell - args.padding))
+                    tile_image.paste(tilepng[char], (inner_x, inner_y - args.size_cell + 1))
 
                 else:
                     clr = cfg['tile'][char] if char in cfg['tile'] else 'grey'
@@ -669,8 +671,8 @@ for li, levelfile in enumerate(args.levelfiles):
                 inner_svg += svg_line(r1, c1, r2, c2, args.padding, path_color, 'arc-' in path_style, avoid_edges, ii == 0, ii + 1 == len(edges), '-arrow' in path_style, '-point' in path_style, '-dash' in path_style, '-thick' in path_style)
 
     finish_svg = True
-    if args.multi is not None:
-        MAX_X, MAX_Y, PAD_X, PAD_Y = args.multi
+    if args.montage is not None:
+        MAX_X, MAX_Y, PAD_X, PAD_Y = args.montage
         finish_svg = False
         if lvlxi == 0:
             # Adding a new row adds to height.
@@ -712,7 +714,7 @@ for li, levelfile in enumerate(args.levelfiles):
     svg += inner_svg
     svg += '</svg>\n'
 
-    if args.multi is not None:
+    if args.montage is not None:
         # Reset for next svg.
         inner_svg = ''
         svg_width = args.padding

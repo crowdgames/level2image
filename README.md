@@ -83,8 +83,8 @@ python level2image.py example/example_with_spriteset.lvl --tile-image-folder=exa
 # Tileset gif
 python level2image.py example/example_frames/*.lvl --fmt=gif-anim --tile-image-folder=example/example_sprites --size-cell 32 --raster-scale 1
 
-# Multi-image png - each png has up to 4x3 levels with 10 pixel spacing between columns and 20 between rows 
-python level2image.py example/example_frames/*.lvl --fmt=png --multi 4 3 10 20
+# Montage pdf - each png has up to 4x3 levels with 10 pixel spacing between columns and 20 between rows, with 5 padding around edges
+python level2image.py example/example_frames/*.lvl --montage 4 3 10 20 --padding 5
 ```
 
 Note for gifs: when using glob wildcards, frames are added in _alphabetical_ order (regardless of the order they appear in your file directory structure), so use prefix 0s in numbered frames.
