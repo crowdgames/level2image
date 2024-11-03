@@ -5,10 +5,11 @@ RECT_NONE         = 'none'
 RECT_FILL         = 'fill'
 RECT_FILL_UNIQ    = 'fill-uniq'
 RECT_HATCH        = 'hatch'
+RECT_BACKHATCH    = 'backhatch'
 RECT_OUTLINE      = 'outline'
 RECT_BORDER       = 'border'
 RECT_BORDER_THICK = 'border-thick'
-RECT_LIST         = [RECT_NONE, RECT_FILL, RECT_FILL_UNIQ, RECT_HATCH, RECT_OUTLINE, RECT_BORDER, RECT_BORDER_THICK]
+RECT_LIST         = [RECT_NONE, RECT_FILL, RECT_FILL_UNIQ, RECT_HATCH, RECT_BACKHATCH, RECT_OUTLINE, RECT_BORDER, RECT_BORDER_THICK]
 
 PATH_NONE         = 'none'
 PATH_LINE         = 'line'
@@ -125,7 +126,7 @@ def svg_rect(r0, c0, rsz, csz, xoff, yoff, sides, style, color, drawn):
         print(' - WARNING: skipping zero-size rect: %f %f %f %f' % (r0, c0, rsz, csz))
         return ''
 
-    if style in [RECT_FILL_UNIQ, RECT_HATCH] and (r0, c0, rsz, csz) in drawn:
+    if style in [RECT_FILL_UNIQ, RECT_HATCH, RECT_BACKHATCH] and (r0, c0, rsz, csz) in drawn:
         return ''
 
     drawn.add((r0, c0, rsz, csz))
@@ -133,7 +134,7 @@ def svg_rect(r0, c0, rsz, csz, xoff, yoff, sides, style, color, drawn):
     if style in [RECT_FILL, RECT_FILL_UNIQ]:
         style_svg = 'stroke:none;fill:%s;fill-opacity:0.3' % (color)
         inset = 0
-    elif style in [RECT_HATCH]:
+    elif style in [RECT_HATCH, RECT_BACKHATCH]:
         style_svg = 'stroke:%s;stroke-width:1.0;fill:none' % (color)
         inset = 0.0
     elif style in [RECT_OUTLINE]:
@@ -160,9 +161,13 @@ def svg_rect(r0, c0, rsz, csz, xoff, yoff, sides, style, color, drawn):
         y0 = (r0 + 0.5 * (rsz - 0.01)) * args.cell_size + yoff
         ysz = 0.01
 
-    if style in [RECT_HATCH]:
+    if style in [RECT_HATCH, RECT_BACKHATCH]:
+        if style == RECT_HATCH:
+            coords = [(0.5, 0.0, 0.0, 0.5), (1.0, 0.0, 0.0, 1.0), (1.0, 0.5, 0.5, 1.0)]
+        else:
+            coords = [(0.5, 0.0, 1.0, 0.5), (0.0, 0.0, 1.0, 1.0), (0.0, 0.5, 0.5, 1.0)]
         ret = ''
-        for xa, ya, xb, yb in [(0.5, 0.0, 0.0, 0.5), (1.0, 0.0, 0.0, 1.0), (1.0, 0.5, 0.5, 1.0)]:
+        for xa, ya, xb, yb in coords:
             ret += '  <line x1="%.2f" y1="%.2f" x2="%.2f" y2="%.2f" style="%s" stroke-linecap="square"/>\n' % (x0 + xa * xsz, y0 + ya * ysz, x0 + xb * xsz, y0 + yb * ysz, style_svg)
         return ret
     elif style in [RECT_BORDER, RECT_BORDER_THICK]:
