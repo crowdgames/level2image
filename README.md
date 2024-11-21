@@ -2,6 +2,10 @@
 
 A utility for converting text level files to various image formats, with support for drawing overlays.
 
+If you use this project in your work, please cite:
+
+Cooper, S. (2024). level2image: A Utility for Making 2D Tile-Based Level Images with Overlays. Proceedings of the AAAI Conference on Artificial Intelligence and Interactive Digital Entertainment, 20(1), 254-255. https://doi.org/10.1609/aiide.v20i1.31886
+
 
 ## Installation and setup
 
