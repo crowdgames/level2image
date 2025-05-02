@@ -86,6 +86,7 @@ parser.add_argument('--viz-color', type=str, nargs=2, metavar=('GROUP', 'COLOR')
 parser.add_argument('--no-avoid', action='store_true', help='Don\'t try to avoid previous edges on path.')
 parser.add_argument('--no-blank', action='store_true', help='Don\'t output blank tiles.')
 parser.add_argument('--tile-image-folder', type=str, help='Folder to look for tile images in.')
+parser.add_argument('--tile-text', action='store_true', help='Always show tile text.')
 parser.add_argument('--padding', type=int, help='Padding around edges.', default=0)
 parser.add_argument('--anim-delay', type=int, help='Frame delay for animation (in ms).', default=250)
 parser.add_argument('--raster-scale', type=int, help='Amount to scale raster images by.', default=2)
@@ -526,13 +527,16 @@ for li, levelfile in enumerate(args.levelfiles):
         pngfilename = pathlib.Path(levelfile).with_suffix('.png')
 
     tile_image = None
+    text_svg = None
 
+    added_background = False
     if pngfilename is not None and os.path.exists(pngfilename):
-        print(' - adding png background')
+        print(' - adding background image')
         pngdata = load_b64_image(pngfilename)
         inner_svg += '  <image x="%d" y="%d" width="%d" height="%d" href="data:image/png;base64,%s"/>\n' % (offset_x, offset_y, level_width, level_height, pngdata)
+        added_background = True
 
-    else:
+    if not added_background or args.tile_image_folder is not None or args.tile_text:
         if args.tile_image_folder is not None:
             tile_image = PIL.Image.new('RGBA', (level_width, level_height), (0, 0, 0, 0))
 
@@ -556,10 +560,12 @@ for li, levelfile in enumerate(args.levelfiles):
                     else:
                         tilepng[char] = None
 
+                added_tile_image = False
                 if char in tilepng and tilepng[char] is not None:
                     tile_image.paste(tilepng[char], (inner_x, inner_y - args.cell_size + 1))
+                    added_tile_image = True
 
-                else:
+                if not added_tile_image or args.tile_text:
                     clr = cfg['tile'][char] if char in cfg['tile'] else 'grey'
 
                     custom = None
@@ -576,15 +582,23 @@ for li, levelfile in enumerate(args.levelfiles):
                         char = None
                         custom = '<path d="M %.2f %.2f L %.2f %.2f L %.2f %.2f" stroke="%s" stroke-width="1" stroke-linecap="round" fill="none"/>' % (x + gz * pth[0], yo + gz * pth[1], x + gz * 0.5, yo + gz * 0.5, x + gz * pth[2], yo + gz * pth[3], clr)
 
+                    if text_svg is None:
+                        text_svg = ''
+
                     if custom is not None:
-                        inner_svg += '  ' + custom + '\n'
+                        text_svg += '  ' + custom + '\n'
                     if char is not None:
-                        inner_svg += '  <text x="%.2f" y="%.2f" dominant-baseline="middle" text-anchor="middle" fill="%s" style="fill-opacity:%.2f">%s</text>\n' % (x + 0.5 * args.cell_size, y - (0.5 - args.font_yadjust) * args.cell_size, clr, 1.0, char)
-                    inner_svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%.2f"/>\n' % (x, y - args.cell_size + 1, args.cell_size, args.cell_size, clr, 0.3)
+                        text_svg += '  <text x="%.2f" y="%.2f" dominant-baseline="middle" text-anchor="middle" fill="%s" style="fill-opacity:%.2f">%s</text>\n' % (x + 0.5 * args.cell_size, y - (0.5 - args.font_yadjust) * args.cell_size, clr, 1.0, char)
+                    text_svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%.2f"/>\n' % (x, y - args.cell_size + 1, args.cell_size, args.cell_size, clr, 0.3)
 
     if tile_image is not None:
+        print(' - adding tile images')
         pngdata = b64_image(tile_image)
         inner_svg += '  <image x="%d" y="%d" width="%d" height="%d" href="data:image/png;base64,%s"/>\n' % (offset_x, offset_y, level_width, level_height, pngdata)
+
+    if text_svg is not None:
+        print(' - adding tile text')
+        inner_svg += text_svg
 
     for group, shape, points in draw_data:
         if shape == SHAPE_TILE:
