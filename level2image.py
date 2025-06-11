@@ -72,6 +72,8 @@ group.add_argument('--background-files', type=str, nargs='+', help='Input backgr
 group.add_argument('--background-suffix', type=str, help='Suffix to remove from filenames when looking for backgrounds.')
 group.add_argument('--background-none', action='store_true', help='Don\'t automatically use background images if present.')
 
+parser.add_argument('--background-color', type=str, help='Add a solid background color.')
+
 parser.add_argument('--font-scale', type=float, help='Amount to scale cell size by to get font size.', default=0.7)
 parser.add_argument('--font-yadjust', type=float, help='Amount to adjust y position of text in cell.', default=0.12)
 parser.add_argument('--cell-size', type=int, help='Cell size.', default=11)
@@ -740,6 +742,8 @@ for li, levelfile in enumerate(args.levelfiles):
     svg_width += args.padding
     svg_height += args.padding
     svg += '<svg viewBox="0 0 %d %d" version="1.1" xmlns="http://www.w3.org/2000/svg" font-family="Courier, monospace" font-size="%.2fpt">\n' % (svg_width, svg_height, args.font_scale * args.cell_size)
+    if args.background_color is not None:
+        svg += '  <rect width="100%%" height="100%%" fill="%s"/>' % args.background_color
     svg += inner_svg
     svg += '</svg>\n'
 
