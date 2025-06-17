@@ -72,8 +72,11 @@ group.add_argument('--background-files', type=str, nargs='+', help='Input backgr
 group.add_argument('--background-suffix', type=str, help='Suffix to remove from filenames when looking for backgrounds.')
 group.add_argument('--background-none', action='store_true', help='Don\'t automatically use background images if present.')
 
-parser.add_argument('--background-color', type=str, help='Add a solid background color.')
+group = parser.add_mutually_exclusive_group(required=False)
+group.add_argument('--blank-none', action='store_true', help='Don\'t output blank tiles.')
+group.add_argument('--blank-color', type=str, help='Use solid color for blank tiles.')
 
+parser.add_argument('--backstage-color', type=str, help='Add a solid color behind the background.')
 parser.add_argument('--font-scale', type=float, help='Amount to scale cell size by to get font size.', default=0.7)
 parser.add_argument('--font-yadjust', type=float, help='Amount to adjust y position of text in cell.', default=0.12)
 parser.add_argument('--cell-size', type=int, help='Cell size.', default=11)
@@ -86,7 +89,6 @@ parser.add_argument('--viz-hide', type=str, metavar='GROUP', action='append', he
 parser.add_argument('--viz-none', action='store_true', help='Hide all groups other than those displayed.')
 parser.add_argument('--viz-color', type=str, nargs=2, metavar=('GROUP', 'COLOR'), action='append', help='Which color to display a group.')
 parser.add_argument('--no-avoid', action='store_true', help='Don\'t try to avoid previous edges on path.')
-parser.add_argument('--no-blank', action='store_true', help='Don\'t output blank tiles.')
 parser.add_argument('--tile-image-folder', type=str, help='Folder to look for tile images in.')
 parser.add_argument('--tile-text', action='store_true', help='Always show tile text.')
 parser.add_argument('--padding', type=int, help='Padding around edges.', default=0)
@@ -544,13 +546,17 @@ for li, levelfile in enumerate(args.levelfiles):
 
         for linei, line in enumerate(lines):
             for chari, char in enumerate(line):
-                if args.no_blank and char == ' ':
-                    continue
-
                 inner_x = chari * args.cell_size
                 inner_y = (linei + 1) * args.cell_size - 1
                 x = inner_x + offset_x
                 y = inner_y + offset_y
+
+                if char == ' ':
+                    if args.blank_none:
+                        continue
+                    if args.blank_color is not None:
+                        text_svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%.2f"/>\n' % (x, y - args.cell_size + 1, args.cell_size, args.cell_size, args.blank_color, 1.0)
+                        continue
 
                 if args.tile_image_folder is not None and char not in tilepng:
                     tilepngname = os.path.join(args.tile_image_folder, char + '.png')
@@ -742,8 +748,8 @@ for li, levelfile in enumerate(args.levelfiles):
     svg_width += args.padding
     svg_height += args.padding
     svg += '<svg viewBox="0 0 %d %d" version="1.1" xmlns="http://www.w3.org/2000/svg" font-family="Courier, monospace" font-size="%.2fpt">\n' % (svg_width, svg_height, args.font_scale * args.cell_size)
-    if args.background_color is not None:
-        svg += '  <rect width="100%%" height="100%%" fill="%s"/>' % args.background_color
+    if args.backstage_color is not None:
+        svg += '  <rect width="100%%" height="100%%" fill="%s"/>' % args.backstage_color
     svg += inner_svg
     svg += '</svg>\n'
 
