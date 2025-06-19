@@ -1,40 +1,41 @@
 import argparse, base64, io, json, math, os, pathlib, sys
 import PIL.Image
 
-RECT_NONE         = 'none'
-RECT_FILL         = 'fill'
-RECT_FILL_UNIQ    = 'fill-uniq'
-RECT_HATCH        = 'hatch'
-RECT_BACKHATCH    = 'backhatch'
-RECT_OUTLINE      = 'outline'
-RECT_BORDER       = 'border'
-RECT_BORDER_THICK = 'border-thick'
-RECT_LIST         = [RECT_NONE, RECT_FILL, RECT_FILL_UNIQ, RECT_HATCH, RECT_BACKHATCH, RECT_OUTLINE, RECT_BORDER, RECT_BORDER_THICK]
+RECT_NONE           = 'none'
+RECT_FILL           = 'fill'
+RECT_FILL_UNIQ      = 'fill-uniq'
+RECT_HATCH          = 'hatch'
+RECT_BACKHATCH      = 'backhatch'
+RECT_OUTLINE        = 'outline'
+RECT_OUTLINE_THICK  = 'outline-thick'
+RECT_BORDER         = 'border'
+RECT_BORDER_THICK   = 'border-thick'
+RECT_LIST           = [RECT_NONE, RECT_FILL, RECT_FILL_UNIQ, RECT_HATCH, RECT_BACKHATCH, RECT_OUTLINE, RECT_OUTLINE_THICK, RECT_BORDER, RECT_BORDER_THICK]
 
-PATH_NONE         = 'none'
-PATH_LINE         = 'line'
-PATH_ARC          = 'arc'
-PATH_LINE_POINT   = 'line-point'
-PATH_ARC_POINT    = 'arc-point'
-PATH_LINE_ARROW   = 'line-arrow'
-PATH_ARC_ARROW    = 'arc-arrow'
-PATH_LINE_DASH    = 'line-dash'
-PATH_ARC_DASH     = 'arc-dash'
-PATH_LINE_THICK   = 'line-thick'
-PATH_ARC_THICK    = 'arc-thick'
-PATH_LIST         = [PATH_NONE, PATH_LINE, PATH_ARC, PATH_LINE_POINT, PATH_ARC_POINT, PATH_LINE_ARROW, PATH_ARC_ARROW, PATH_LINE_DASH, PATH_ARC_DASH, PATH_LINE_THICK, PATH_ARC_THICK]
+PATH_NONE           = 'none'
+PATH_LINE           = 'line'
+PATH_ARC            = 'arc'
+PATH_LINE_POINT     = 'line-point'
+PATH_ARC_POINT      = 'arc-point'
+PATH_LINE_ARROW     = 'line-arrow'
+PATH_ARC_ARROW      = 'arc-arrow'
+PATH_LINE_DASH      = 'line-dash'
+PATH_ARC_DASH       = 'arc-dash'
+PATH_LINE_THICK     = 'line-thick'
+PATH_ARC_THICK      = 'arc-thick'
+PATH_LIST           = [PATH_NONE, PATH_LINE, PATH_ARC, PATH_LINE_POINT, PATH_ARC_POINT, PATH_LINE_ARROW, PATH_ARC_ARROW, PATH_LINE_DASH, PATH_ARC_DASH, PATH_LINE_THICK, PATH_ARC_THICK]
 
-SHAPE_PATH        = 'path'
-SHAPE_LINE        = 'line'
-SHAPE_TILE        = 'tile'
-SHAPE_RECT        = 'rect'
-SHAPE_LIST        = [SHAPE_PATH, SHAPE_LINE, SHAPE_TILE, SHAPE_RECT]
+SHAPE_PATH          = 'path'
+SHAPE_LINE          = 'line'
+SHAPE_TILE          = 'tile'
+SHAPE_RECT          = 'rect'
+SHAPE_LIST          = [SHAPE_PATH, SHAPE_LINE, SHAPE_TILE, SHAPE_RECT]
 
-FMT_SVG           = 'svg'
-FMT_PDF           = 'pdf'
-FMT_PNG           = 'png'
-FMT_GIF_ANIM      = 'gif-anim'
-FMT_LIST          = [FMT_SVG, FMT_PDF, FMT_PNG, FMT_GIF_ANIM]
+FMT_SVG             = 'svg'
+FMT_PDF             = 'pdf'
+FMT_PNG             = 'png'
+FMT_GIF_ANIM        = 'gif-anim'
+FMT_LIST            = [FMT_SVG, FMT_PDF, FMT_PNG, FMT_GIF_ANIM]
 
 class GroupShapeStyleAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
@@ -145,6 +146,9 @@ def svg_rect(r0, c0, rsz, csz, xoff, yoff, sides, style, color, drawn):
     elif style in [RECT_OUTLINE]:
         style_svg = 'stroke:%s;fill:none' % (color)
         inset = 0.5
+    elif style in [RECT_OUTLINE_THICK]:
+        style_svg = 'stroke:%s;stroke-width:2.0;fill:none' % (color)
+        inset = 1.0
     elif style in [RECT_BORDER]:
         style_svg = 'stroke:%s;stroke-width:1.5;fill:none' % (color)
         inset = 0
