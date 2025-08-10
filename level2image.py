@@ -92,6 +92,7 @@ parser.add_argument('--viz-color', type=str, nargs=2, metavar=('GROUP', 'COLOR')
 parser.add_argument('--no-avoid', action='store_true', help='Don\'t try to avoid previous edges on path.')
 parser.add_argument('--tile-image-folder', type=str, help='Folder to look for tile images in.')
 parser.add_argument('--tile-text', action='store_true', help='Always show tile text.')
+parser.add_argument('--tile-norect', action='store_true', help='No rectangle with tile text.')
 parser.add_argument('--padding', type=int, help='Padding around edges.', default=0)
 parser.add_argument('--anim-delay', type=int, help='Frame delay for animation (in ms).', default=250)
 parser.add_argument('--raster-scale', type=int, help='Amount to scale raster images by.', default=2)
@@ -480,26 +481,38 @@ tilepng = {}
 for li, levelfile in enumerate(args.levelfiles):
     print('processing', levelfile)
 
-    lines = []
-    max_line_len = 0
-
+    layer_grids = []
     draw_data = []
 
-    with open(levelfile, 'rt') as lvl:
-        for line in lvl:
-            line = line.rstrip('\n')
+    if levelfile.endswith('.json'):
+        with open(levelfile, 'rt') as lvl:
+            level_json = json.load(lvl)
+        for layer, grid in level_json.items():
+            layer_grids.append(grid)
 
-            if line.startswith('META'):
-                meta = json.loads(line[4:])
-                if meta['type'] == 'geom':
-                    if meta['shape'] in SHAPE_LIST:
-                        draw_data.append((meta['group'], meta['shape'], meta['data']))
-                    else:
-                        print(' - WARNING: unrecognized META geom: %s' % line)
+    else:
+        with open(levelfile, 'rt') as lvl:
+            grid = []
+            for line in lvl:
+                line = line.rstrip('\n')
 
-            else:
-                lines.append(line)
-                max_line_len = max(max_line_len, len(line))
+                if line.startswith('META'):
+                    meta = json.loads(line[4:])
+                    if meta['type'] == 'geom':
+                        if meta['shape'] in SHAPE_LIST:
+                            draw_data.append((meta['group'], meta['shape'], meta['data']))
+                        else:
+                            print(' - WARNING: unrecognized META geom: %s' % line)
+
+                else:
+                    grid.append(line)
+            layer_grids.append(grid)
+
+    grid_rows, grid_cols = 0, 0
+    for grid in layer_grids:
+        grid_rows = max(grid_rows, len(grid))
+        for row in grid:
+            grid_cols = max(grid_cols, len(row))
 
     draw_data_order = []
     for ogroup, oshape in draw_order:
@@ -515,8 +528,8 @@ for li, levelfile in enumerate(args.levelfiles):
 
 
 
-    level_width = max_line_len * args.cell_size
-    level_height = len(lines) * args.cell_size
+    level_width = grid_cols * args.cell_size
+    level_height = grid_rows * args.cell_size
     if args.montage is None:
         inner_svg = ''
         offset_x = args.padding
@@ -548,60 +561,63 @@ for li, levelfile in enumerate(args.levelfiles):
         if args.tile_image_folder is not None:
             tile_image = PIL.Image.new('RGBA', (level_width, level_height), (0, 0, 0, 0))
 
-        for linei, line in enumerate(lines):
-            for chari, char in enumerate(line):
-                inner_x = chari * args.cell_size
-                inner_y = (linei + 1) * args.cell_size - 1
-                x = inner_x + offset_x
-                y = inner_y + offset_y
+        for grid in reversed(layer_grids):
+            for linei, line in enumerate(grid):
+                for chari, char in enumerate(line):
+                    inner_x = chari * args.cell_size
+                    inner_y = (linei + 1) * args.cell_size - 1
+                    x = inner_x + offset_x
+                    y = inner_y + offset_y
 
-                if char == ' ':
-                    if args.blank_none:
-                        continue
-                    if args.blank_color is not None:
-                        text_svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%.2f"/>\n' % (x, y - args.cell_size + 1, args.cell_size, args.cell_size, args.blank_color, 1.0)
-                        continue
+                    if char == ' ':
+                        if args.blank_none:
+                            continue
+                        if args.blank_color is not None and not args.tile_norect:
+                            text_svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%.2f"/>\n' % (x, y - args.cell_size + 1, args.cell_size, args.cell_size, args.blank_color, 1.0)
+                            continue
 
-                if args.tile_image_folder is not None and char not in tilepng:
-                    tilepngname = os.path.join(args.tile_image_folder, char + '.png')
-                    if os.path.exists(tilepngname):
-                        image = load_image(tilepngname)
-                        if image.size != (args.cell_size, args.cell_size):
-                            image = image.resize((args.cell_size, args.cell_size))
-                        tilepng[char] = image
-                    else:
-                        tilepng[char] = None
+                    if args.tile_image_folder is not None and char not in tilepng:
+                        tilepngname = os.path.join(args.tile_image_folder, char + '.png')
+                        if os.path.exists(tilepngname):
+                            image = load_image(tilepngname)
+                            if image.size != (args.cell_size, args.cell_size):
+                                image = image.resize((args.cell_size, args.cell_size))
+                            tilepng[char] = image
+                        else:
+                            tilepng[char] = None
 
-                added_tile_image = False
-                if char in tilepng and tilepng[char] is not None:
-                    tile_image.paste(tilepng[char], (inner_x, inner_y - args.cell_size + 1))
-                    added_tile_image = True
+                    added_tile_image = False
+                    if char in tilepng and tilepng[char] is not None:
+                        tile_image.paste(tilepng[char], (inner_x, inner_y - args.cell_size + 1))
+                        added_tile_image = True
 
-                if not added_tile_image or args.tile_text:
-                    clr = cfg['tile'][char] if char in cfg['tile'] else 'grey'
+                    if not added_tile_image or args.tile_text:
+                        clr = cfg['tile'][char] if char in cfg['tile'] else 'grey'
 
-                    custom = None
-                    if char == '<':
-                        char = '&lt;'
-                    elif char == '>':
-                        char = '&gt;'
-                    elif char == '&':
-                        char = '&#38;'
-                    elif char in '─│┐┘└┌':
-                        pth = {'─': (0.0, 0.5, 1.0, 0.5), '│': (0.5, 0.0, 0.5, 1.0), '┐': (0.5, 1.0, 0.0, 0.5), '┘': (0.0, 0.5, 0.5, 0.0), '└': (0.5, 0.0, 1.0, 0.5), '┌': (1.0, 0.5, 0.5, 1.0)}[char]
-                        gz = args.cell_size
-                        yo = y - gz + 1
-                        char = None
-                        custom = '<path d="M %.2f %.2f L %.2f %.2f L %.2f %.2f" stroke="%s" stroke-width="1" stroke-linecap="round" fill="none"/>' % (x + gz * pth[0], yo + gz * pth[1], x + gz * 0.5, yo + gz * 0.5, x + gz * pth[2], yo + gz * pth[3], clr)
+                        custom = None
+                        if char == '<':
+                            char = '&lt;'
+                        elif char == '>':
+                            char = '&gt;'
+                        elif char == '&':
+                            char = '&#38;'
+                        elif char in '─│┐┘└┌':
+                            pth = {'─': (0.0, 0.5, 1.0, 0.5), '│': (0.5, 0.0, 0.5, 1.0), '┐': (0.5, 1.0, 0.0, 0.5), '┘': (0.0, 0.5, 0.5, 0.0), '└': (0.5, 0.0, 1.0, 0.5), '┌': (1.0, 0.5, 0.5, 1.0)}[char]
+                            gz = args.cell_size
+                            yo = y - gz + 1
+                            char = None
+                            custom = '<path d="M %.2f %.2f L %.2f %.2f L %.2f %.2f" stroke="%s" stroke-width="1" stroke-linecap="round" fill="none"/>' % (x + gz * pth[0], yo + gz * pth[1], x + gz * 0.5, yo + gz * 0.5, x + gz * pth[2], yo + gz * pth[3], clr)
 
-                    if text_svg is None:
-                        text_svg = ''
+                        if text_svg is None:
+                            text_svg = ''
 
-                    if custom is not None:
-                        text_svg += '  ' + custom + '\n'
-                    if char is not None:
-                        text_svg += '  <text x="%.2f" y="%.2f" dominant-baseline="middle" text-anchor="middle" fill="%s" style="fill-opacity:%.2f">%s</text>\n' % (x + 0.5 * args.cell_size, y - (0.5 - args.font_yadjust) * args.cell_size, clr, 1.0, char)
-                    text_svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%.2f"/>\n' % (x, y - args.cell_size + 1, args.cell_size, args.cell_size, clr, 0.3)
+                        if custom is not None:
+                            text_svg += '  ' + custom + '\n'
+                        if char is not None:
+                            xscale = 1.0 / len(char)
+                            text_svg += '  <text x="%.2f" y="%.2f" transform="scale(%.2f, 1.0)" dominant-baseline="middle" text-anchor="middle" fill="%s" style="fill-opacity:%.2f">%s</text>\n' % ((x + 0.5 * args.cell_size) / xscale, y - (0.5 - args.font_yadjust) * args.cell_size, xscale, clr, 1.0, char)
+                        if not args.tile_norect:
+                            text_svg += '  <rect x="%d" y="%d" width="%d" height="%d" style="stroke:none;fill:%s;fill-opacity:%.2f"/>\n' % (x, y - args.cell_size + 1, args.cell_size, args.cell_size, clr, 0.3)
 
     if tile_image is not None:
         print(' - adding tile images')
