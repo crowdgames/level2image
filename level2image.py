@@ -18,12 +18,13 @@ PATH_ARC            = 'arc'
 PATH_LINE_POINT     = 'line-point'
 PATH_ARC_POINT      = 'arc-point'
 PATH_LINE_ARROW     = 'line-arrow'
+PATH_LINE_ARROW_SD  = 'line-arrow-srcdst'
 PATH_ARC_ARROW      = 'arc-arrow'
 PATH_LINE_DASH      = 'line-dash'
 PATH_ARC_DASH       = 'arc-dash'
 PATH_LINE_THICK     = 'line-thick'
 PATH_ARC_THICK      = 'arc-thick'
-PATH_LIST           = [PATH_NONE, PATH_LINE, PATH_ARC, PATH_LINE_POINT, PATH_ARC_POINT, PATH_LINE_ARROW, PATH_ARC_ARROW, PATH_LINE_DASH, PATH_ARC_DASH, PATH_LINE_THICK, PATH_ARC_THICK]
+PATH_LIST           = [PATH_NONE, PATH_LINE, PATH_ARC, PATH_LINE_POINT, PATH_ARC_POINT, PATH_LINE_ARROW, PATH_LINE_ARROW_SD, PATH_ARC_ARROW, PATH_LINE_DASH, PATH_ARC_DASH, PATH_LINE_THICK, PATH_ARC_THICK]
 
 SHAPE_PATH          = 'path'
 SHAPE_LINE          = 'line'
@@ -673,8 +674,20 @@ for li, levelfile in enumerate(args.levelfiles):
             else:
                 avoid_edges = [(r1, c1, r2, c2) for (r1, c1, r2, c2) in points]
 
+            dots = {}
+            if '-srcdst' in line_style:
+                srcs, dsts = {}, {}
+                for r1, c1, r2, c2 in points:
+                    srcs[(r1, c1)] = None
+                    dsts[(r2, c2)] = None
+                for r1, c1, r2, c2 in points:
+                    if (r1, c1) not in dsts:
+                        dots[(r1, c1)] = None
+                    if (r2, c2) not in srcs:
+                        dots[(r2, c2)] = None
+
             for ii, (r1, c1, r2, c2) in enumerate(points):
-                inner_svg += svg_line(r1, c1, r2, c2, offset_x, offset_y, line_color, 'arc-' in line_style, avoid_edges, False, False, '-arrow' in line_style, '-point' in line_style, '-dash' in line_style, '-thick' in line_style)
+                inner_svg += svg_line(r1, c1, r2, c2, offset_x, offset_y, line_color, 'arc-' in line_style, avoid_edges, (r1, c1) in dots, (r2, c2) in dots, '-arrow' in line_style, '-point' in line_style, '-dash' in line_style, '-thick' in line_style)
 
         elif shape == SHAPE_PATH:
             path_color = get_draw_color(group)
