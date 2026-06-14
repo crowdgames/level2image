@@ -1,4 +1,4 @@
-import argparse, base64, io, json, math, os, pathlib, sys
+import argparse, base64, io, json, math, os, sys
 import PIL.Image
 
 RECT_NONE           = 'none'
@@ -68,6 +68,7 @@ class CustomHelpFormatter(argparse.HelpFormatter):
 
 parser = argparse.ArgumentParser(description='Create image from level file.', formatter_class=CustomHelpFormatter)
 parser.add_argument('levelfiles', type=str, nargs='+', help='Input level files.')
+parser.add_argument('--outfolder', type=str, help='Output folder.')
 
 group = parser.add_mutually_exclusive_group(required=False)
 group.add_argument('--background-files', type=str, nargs='+', help='Input background images.')
@@ -465,6 +466,14 @@ def get_draw_style(group, shape):
 
 
 
+def new_file_name(filename, newfolder, newext):
+    head, tail = os.path.split(filename)
+    root, ext = os.path.splitext(tail)
+    newhead = newfolder if newfolder is not None else head
+    return os.path.join(newhead, root + newext)
+
+
+
 anim_name, anim_data = None, None
 if args.fmt == FMT_GIF_ANIM:
     anim_data = []
@@ -546,7 +555,7 @@ for li, levelfile in enumerate(args.levelfiles):
     elif args.background_suffix is not None:
         pngfilename = levelfile.removesuffix(args.background_suffix) + '.png'
     elif not args.background_none:
-        pngfilename = pathlib.Path(levelfile).with_suffix('.png')
+        pngfilename = new_file_name(levelfile, None, '.png')
 
     tile_image = None
     text_svg = None
@@ -822,13 +831,13 @@ for li, levelfile in enumerate(args.levelfiles):
             sys.stdout.write(data)
 
         else:
-            outfilename = str(pathlib.Path(levelfile).with_suffix('')) + args.suffix + ext
+            outfilename = new_file_name(levelfile, args.outfolder, args.suffix + ext)
             print(' - writing', outfilename)
             outfile = open(outfilename, 'w' + mode)
             outfile.write(data)
 
 if args.fmt == FMT_GIF_ANIM:
-    outfilename = str(pathlib.Path(anim_name).with_suffix('')) + args.suffix + '.anim.gif'
+    outfilename = new_file_name(anim_name, args.outfolder, args.suffix + '.anim.gif')
     print(' - writing', outfilename)
     imgs = [PIL.Image.open(io.BytesIO(data)) for data in anim_data]
 
