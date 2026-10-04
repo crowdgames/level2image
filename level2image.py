@@ -38,6 +38,10 @@ FMT_PNG             = 'png'
 FMT_GIF_ANIM        = 'gif-anim'
 FMT_LIST            = [FMT_SVG, FMT_PDF, FMT_PNG, FMT_GIF_ANIM]
 
+CVT_CAIROSVG        = 'cairosvg'
+CVT_REPORTLAB       = 'reportlab'
+CVT_LIST            = [CVT_CAIROSVG, CVT_REPORTLAB]
+
 class GroupShapeStyleAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
         super().__init__(option_strings, dest, nargs, **kwargs)
@@ -86,6 +90,7 @@ parser.add_argument('--cell-size', type=int, help='Cell size.', default=11)
 parser.add_argument('--cfgfile', type=str, help='Config file.')
 parser.add_argument('--suffix', type=str, help='Extra suffix to add to output file.', default='.out')
 parser.add_argument('--fmt', type=str, choices=FMT_LIST, help='Output format, from: ' + ','.join(FMT_LIST) + '.', default=FMT_PDF)
+parser.add_argument('--cvt', type=str, choices=CVT_LIST, help='Desired output converter, from: ' + ','.join(CVT_LIST) + '.')
 parser.add_argument('--stdout', action='store_true', help='Write to stdout instead of file.')
 parser.add_argument('--viz', type=str, nargs='+', action=GroupShapeStyleAction, help='How to display the group GROUP; SHAPE from: ' + ','.join(SHAPE_LIST) + '; STYLE from: ' + ','.join(PATH_LIST) + ' or ' + ','.join(RECT_LIST) + '.')
 parser.add_argument('--viz-hide', type=str, metavar='GROUP', action='append', help='Hide a group.')
@@ -101,10 +106,6 @@ parser.add_argument('--raster-scale', type=int, help='Amount to scale raster ima
 
 # Arguments for multiple levels in one image.
 parser.add_argument('--montage', type=int, nargs=4, metavar=('MAX_X', 'MAX_Y', 'PAD_X', 'PAD_Y'), help='Put multiple levels in one image; MAX_X: number of levels per row or -1 for unlimited; MAX_Y: number of levels per column or -1 for unlimited; PAD_X: padding between levels on each row; PAD_Y: padding between levels on each column.')
-
-group = parser.add_mutually_exclusive_group(required=False)
-group.add_argument('--cairosvg', action='store_true', help='Only try to use cairosvg converter.')
-group.add_argument('--svglib', action='store_true', help='Only try to use svglib converter.')
 
 args = parser.parse_args()
 
@@ -303,6 +304,9 @@ def load_b64_image(filename):
 
 def initialize_cairosvg():
     try:
+        if sys.platform in ['darwin']:
+            os.environ['DYLD_LIBRARY_PATH'] = ((os.environ['DYLD_LIBRARY_PATH'] + os.pathsep) if 'DYLD_LIBRARY_PATH' in os.environ else '') + '/opt/homebrew/lib'
+
         import cairosvg
 
         def _svg2pdf(svg):
@@ -316,7 +320,7 @@ def initialize_cairosvg():
     except ImportError:
         return None
 
-def initialize_svglib():
+def initialize_reportlab():
     try:
         import svglib.svglib
         import reportlab.graphics.renderPDF
@@ -356,11 +360,11 @@ def initialize_svglib():
 
 def initialize_unsupported():
     def _svg2pdf(svg):
-        print('Unsupported conversion to pdf. Try installing packages for cairosvg or svglib.')
+        print('Unsupported conversion to pdf. Try installing packages for cairosvg or reportlab.')
         sys.exit(-1)
 
     def _svg2png(svg, svg_width, svg_height, svg_scale):
-        print('Unsupported conversion to image. Try installing packages for cairosvg or svglib.')
+        print('Unsupported conversion to image. Try installing packages for cairosvg or reportlab.')
         sys.exit(-1)
 
     return _svg2pdf, _svg2png
@@ -368,9 +372,9 @@ def initialize_unsupported():
 
 svg2pdf, svg2png = None, None
 
-initializers = [(initialize_cairosvg, 'cairosvg', not args.svglib),
-                (initialize_svglib, 'svglib', not args.cairosvg),
-                (initialize_unsupported, 'unsupported', not (args.svglib or args.cairosvg))]
+initializers = [(initialize_cairosvg, CVT_CAIROSVG, args.cvt in [None, CVT_CAIROSVG]),
+                (initialize_reportlab, CVT_REPORTLAB, args.cvt in [None, CVT_REPORTLAB]),
+                (initialize_unsupported, 'UNSUPPORTED', args.cvt in [None])]
 
 for initializer, name, attempt in initializers:
     if attempt:

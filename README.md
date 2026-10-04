@@ -19,7 +19,7 @@ pip3 install pipenv
 
 To set up the pipenv environment, run:
 ```
-pipenv install --categories svglib
+pipenv install
 ```
 
 Then you can launch a shell to run the utility with:
@@ -32,15 +32,7 @@ There are some example usages below.
 
 ### Custom setup
 
-The above instructions install the svglib converter, which seems to be more portable to different platforms.
-
-If you'd like to use the cairosvg converter, you can instead run:
-
-```
-pipenv install --categories cairosvg
-```
-
-To use cairosvg, you may need to install the Cairo libraries specific to your platform. For example, on macOS you may need to install brew and run:
+The above instructions install all the converters. To use cairosvg, you may need to install the Cairo libraries specific to your platform. For example, on macOS you may need to install brew and run:
 
 ```
 brew install cairo
@@ -51,15 +43,16 @@ Or on Linux:
 apt install libcairo2
 ```
 
-If you want both converters, you can run:
+If there are issues installing, you can try installing just the reportlab converter, by instead running:
+
 ```
-pipenv install --categories "cairosvg svglib"
+pipenv install --categories reportlab-only
 ```
 
 If you only want to produce svgs, you don't need to install a converer, and can just run:
 
 ```
-pipenv install
+pipenv install --categories svg-only
 ```
 
 

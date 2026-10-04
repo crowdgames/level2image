@@ -7,13 +7,17 @@ name = "pypi"
 python_version = "3.12"
 
 [packages]
+cairosvg = "*"
 Pillow = "*"
-
-[svglib]
-Pillow = "*"
-reportlab = {version="*", extras=["renderpm"]}
+reportlab = {version="<5.0.0", extras=["renderpm"]}
 svglib = "*"
 
-[cairosvg]
+[reportlab-only]
 Pillow = "*"
-cairosvg = "*"
+reportlab = {version="<5.0.0", extras=["renderpm"]}
+svglib = "*"
+
+[svg-only]
+Pillow = "*"
+
+[dev-packages]
