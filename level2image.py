@@ -286,7 +286,7 @@ def svg_line(r1, c1, r2, c2, xoff, yoff, color, require_arc, arc_avoid_edges, fr
 def load_image(filename):
     file_image = PIL.Image.open(filename).convert('RGBA')
     fresh_image = PIL.Image.new(file_image.mode, file_image.size)
-    fresh_image.putdata(file_image.getdata())
+    fresh_image.putdata(file_image.get_flattened_data())
     return fresh_image
 
 def b64_image(image):
